@@ -21,7 +21,7 @@ export default function GlobalSearch({supabase,workspaceId,onNavigate}:Props){
 
   useEffect(()=>{
     if(!open)return;
-    const close=(event:MouseEvent)=>{if(rootRef.current&&!rootRef.current.contains(event.target as Node))setOpen(false);};
+    const close=(event:MouseEvent)=>{if(rootRef.current&&!rootRef.current.contains(event.target as Node)){setOpen(false);setMobileOpen(false);}};
     const key=(event:globalThis.KeyboardEvent)=>{if(event.key==="Escape"){setOpen(false);setMobileOpen(false);}};
     document.addEventListener("mousedown",close);
     document.addEventListener("keydown",key);
