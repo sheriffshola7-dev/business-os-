@@ -54,7 +54,7 @@ export default function InvoicesDashboard({supabase,workspaceId,userId,currency,
   const [paymentNotes,setPaymentNotes]=useState("");
 
   const loadInvoices=useCallback(async()=>{
-    if(!supabase||!workspaceId){setLoading(false);return;}
+    if(!workspaceId){setLoading(false);return;}
     setLoading(true);setError("");
     const {data,error:loadError}=await db.from("invoices").select("id,workspace_id,customer_id,invoice_number,issue_date,due_date,currency,subtotal,tax_rate,tax_amount,total_amount,amount_paid,status,notes,created_at").eq("workspace_id",workspaceId).order("created_at",{ascending:false}).limit(100);
     if(loadError)setError(loadError.message);
