@@ -61,6 +61,12 @@ Deno.serve(async (req: Request) => {
       return response(403, { error: "Only workspace owners can invite team members." });
     }
 
+    await admin.from("workspace_invitations")
+      .update({ status: "expired" })
+      .eq("workspace_id", workspaceId)
+      .eq("status", "pending")
+      .lte("expires_at", new Date().toISOString());
+
     const { data: invitation, error: insertError } = await admin
       .from("workspace_invitations")
       .insert({ workspace_id: workspaceId, email, role, invited_by: userData.user.id })
@@ -116,8 +122,12 @@ Deno.serve(async (req: Request) => {
     if (invitation.status === "accepted" && invitation.accepted_by === userData.user.id) {
       return response(200, { accepted: true, workspaceId: invitation.workspace_id });
     }
-    if (invitation.status !== "pending" || new Date(invitation.expires_at).getTime() <= Date.now()) {
-      return response(410, { error: "This invitation has expired or is no longer active." });
+    if (invitation.status === "pending" && new Date(invitation.expires_at).getTime() <= Date.now()) {
+      await admin.from("workspace_invitations").update({ status: "expired" }).eq("id", invitation.id).eq("status", "pending");
+      return response(410, { error: "This invitation has expired. Ask the workspace owner for a new one." });
+    }
+    if (invitation.status !== "pending") {
+      return response(410, { error: "This invitation is no longer active." });
     }
     if (invitation.email.toLowerCase() !== email) {
       return response(403, { error: "Sign in with the email address this invitation was sent to." });
