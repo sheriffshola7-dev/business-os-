@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, ArrowDownUp, ArrowRight, Bell, BriefcaseBusiness, Check, ChevronDown, CircleHelp, CreditCard, FileText, LayoutDashboard, LoaderCircle, ReceiptText, LogOut, Menu, Moon, MoreHorizontal, Package, Pencil, Plus, Search, Settings, ShoppingBag, Sun, Target, TrendingUp, Users, Wallet, X, Zap } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDownUp, ArrowRight, Bell, BriefcaseBusiness, Check, ChevronDown, CircleHelp, CreditCard, FileText, LayoutDashboard, LoaderCircle, ReceiptText, LogOut, Menu, Moon, MoreHorizontal, Package, Pencil, Plus, Settings, ShoppingBag, Sun, Target, TrendingUp, Users, Wallet, X, Zap } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import TeamManagement from "@/components/team-management";
 import ReportsDashboard from "@/components/reports-dashboard";
