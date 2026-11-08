@@ -35,6 +35,7 @@ export default function GlobalSearch({supabase,workspaceId,onNavigate}:Props){
     const timer=window.setTimeout(async()=>{
       setLoading(true);setSearchError("");
       const safeTerm=term.replace(/[(),.%_\\"]/g," ").trim();
+      if(!safeTerm){setResults([]);setLoading(false);return;}
       const pattern="%"+term.replace(/[\\%_]/g,"\\$&")+"%";
       try{
         const [tasks,customers,expenses,sales,inventory,invoices]=await Promise.all([
