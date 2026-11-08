@@ -127,7 +127,7 @@ export default function Home(){
     if(insertError)throw insertError;
     setExpenses(current=>[data as Expense,...current]);setExpenseDescription("");setExpenseAmount("");setNotice("Expense saved to your workspace.");
    }else if(modal==="sale"&&saleDescription.trim()&&Number(saleAmount)>0&&Number(saleQuantity)>0){
-    const {data,error:insertError}=await supabase.from("sales").insert({workspace_id:workspaceId,description:saleDescription.trim(),amount:Number(saleAmount),currency:"NGN",customer_id:saleCustomerId||null,status:saleStatus,sold_on:saleDate,inventory_item_id:saleInventoryItemId||null,quantity:Number(saleQuantity),created_by:user.id}).select("id,description,amount,currency,status,sold_on,customer_id,inventory_item_id,quantity").single();
+    const {data,error:insertError}=await supabase.from("sales").insert({workspace_id:workspaceId,description:saleDescription.trim(),amount:Number(saleAmount),currency:workspaceCurrency,customer_id:saleCustomerId||null,status:saleStatus,sold_on:saleDate,inventory_item_id:saleInventoryItemId||null,quantity:Number(saleQuantity),created_by:user.id}).select("id,description,amount,currency,status,sold_on,customer_id,inventory_item_id,quantity").single();
     if(insertError)throw insertError;
     setSales(current=>[data as Sale,...current]);setSaleDescription("");setSaleAmount("");setSaleCustomerId("");setSaleStatus("pending");setSaleDate(new Date().toISOString().slice(0,10));setSaleInventoryItemId("");setSaleQuantity("1");setNotice("Sale saved to your workspace.");
     if(saleStatus==="completed"&&saleInventoryItemId)await loadData();
