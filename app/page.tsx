@@ -53,6 +53,7 @@ export default function Home(){
  const [search,setSearch]=useState("");
  const [modal,setModal]=useState<ModalKind>(null);
  const [taskTitle,setTaskTitle]=useState("");
+ const [taskDueDate,setTaskDueDate]=useState("");
  const [customerName,setCustomerName]=useState("");
  const [customerEmail,setCustomerEmail]=useState("");
  const [expenseDescription,setExpenseDescription]=useState("");
@@ -141,9 +142,9 @@ export default function Home(){
   setBusy(true);setError("");setNotice("");
   try{
    if(modal==="task"&&taskTitle.trim()){
-    const {data,error:insertError}=await supabase.from("tasks").insert({workspace_id:workspaceId,title:taskTitle.trim(),created_by:user.id}).select("id,title,status,due_date,created_at").single();
+    const {data,error:insertError}=await supabase.from("tasks").insert({workspace_id:workspaceId,title:taskTitle.trim(),due_date:taskDueDate||null,created_by:user.id}).select("id,title,status,due_date,created_at").single();
     if(insertError)throw insertError;
-    setTasks(current=>[data as Task,...current]);setTaskTitle("");setNotice("Task saved to your workspace.");
+    setTasks(current=>[data as Task,...current]);setTaskTitle("");setTaskDueDate("");setNotice("Task saved to your workspace.");
    }else if(modal==="customer"&&customerName.trim()){
     const {data,error:insertError}=await supabase.from("customers").insert({workspace_id:workspaceId,name:customerName.trim(),email:customerEmail.trim()||null,created_by:user.id}).select("id,name,email,company,created_at").single();
     if(insertError)throw insertError;
@@ -284,7 +285,8 @@ export default function Home(){
    </div>
 
    <div className="mt-5 space-y-3">
-    {modal === "task" && <label className="block text-[11px] font-semibold text-[#526057]">Task name<input autoFocus required value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="e.g. Prepare monthly report" className="field"/></label>}
+    {modal === "task" && <label className="block text-[11px] font-semibold text-[#526057]">Task name<input autoFocus required value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="e.g. Prepare monthly report" className="field"/></label>
+     <label className="block text-[11px] font-semibold text-[#526057]">Due date (optional)<input type="date" value={taskDueDate} onChange={(event)=>setTaskDueDate(event.target.value)} className="field"/></label>}
 
     {modal === "customer" && <>
      <label className="block text-[11px] font-semibold text-[#526057]">Customer name<input autoFocus required value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Customer name" className="field"/></label>
