@@ -69,11 +69,12 @@ export default function InvoicesDashboard({supabase,workspaceId,userId,currency,
     const state=statusFor(invoice);
     return matches&&(filter==="all"||state===filter);
   }),[invoices,customers,search,filter]);
-  const outstanding=invoices.reduce((sum,item)=>sum+Math.max(0,Number(item.total_amount)-Number(item.amount_paid)),0);
+  const outstanding=invoices.filter(item=>item.currency===currency).reduce((sum,item)=>sum+Math.max(0,Number(item.total_amount)-Number(item.amount_paid)),0);
+  const mixedCurrencyCount=invoices.filter(item=>item.currency!==currency).length;
   const overdueCount=invoices.filter(item=>statusFor(item)==="overdue").length;
   const paidCount=invoices.filter(item=>item.status==="paid").length;
   const draftCount=invoices.filter(item=>item.status==="draft").length;
-  const subtotal=lines.reduce((sum,line)=>sum+Math.max(0,Number(line.quantity)||0)*Math.max(0,Number(line.unit_price)||0),0);
+  const subtotal=lines.reduce((sum,line)=>sum+Math.round(Math.max(0,Number(line.quantity)||0)*Math.max(0,Number(line.unit_price)||0)*100)/100,0);
   const taxAmount=Math.round(subtotal*(Math.max(0,Math.min(100,Number(taxRate)||0)))/100*100)/100;
   const total=subtotal+taxAmount;
 
@@ -152,7 +153,7 @@ export default function InvoicesDashboard({supabase,workspaceId,userId,currency,
   return <div className="space-y-4">
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <div className="subtle-card p-4"><div className="flex items-center justify-between text-[10px] text-[#929c95]">Invoices <ReceiptText size={15}/></div><p className="mt-2 text-[22px] font-bold">{invoices.length}</p><p className="mt-1 text-[10px] text-[#929c95]">Latest 100 workspace records</p></div>
-      <div className="subtle-card p-4"><div className="flex items-center justify-between text-[10px] text-[#929c95]">Outstanding <ArrowUpRight size={15}/></div><p className="mt-2 text-[20px] font-bold">{formatMoney(outstanding,currency)}</p><p className="mt-1 text-[10px] text-[#929c95]">Unpaid balances in workspace currency</p></div>
+      <div className="subtle-card p-4"><div className="flex items-center justify-between text-[10px] text-[#929c95]">Outstanding <ArrowUpRight size={15}/></div><p className="mt-2 text-[20px] font-bold">{formatMoney(outstanding,currency)}</p><p className="mt-1 text-[10px] text-[#929c95]">Current workspace currency only</p></div>
       <div className="subtle-card p-4"><div className="flex items-center justify-between text-[10px] text-[#929c95]">Overdue <CalendarDays size={15}/></div><p className="mt-2 text-[22px] font-bold">{overdueCount}</p><p className="mt-1 text-[10px] text-[#929c95]">Past due with a remaining balance</p></div>
       <div className="subtle-card p-4"><div className="flex items-center justify-between text-[10px] text-[#929c95]">Paid <Check size={15}/></div><p className="mt-2 text-[22px] font-bold">{paidCount}</p><p className="mt-1 text-[10px] text-[#929c95]">{draftCount} drafts awaiting issue</p></div>
     </div>
@@ -166,6 +167,7 @@ export default function InvoicesDashboard({supabase,workspaceId,userId,currency,
         <div className="relative min-w-0 flex-1"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa49e]"/><input aria-label="Search invoices" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search invoice number or customer" className="field !mt-0 !pl-9"/></div>
         <select value={filter} onChange={event=>setFilter(event.target.value)} className="field !mt-0 sm:w-[150px]"><option value="all">All statuses</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="partially_paid">Part-paid</option><option value="overdue">Overdue</option><option value="paid">Paid</option><option value="void">Void</option></select>
       </div>
+      {mixedCurrencyCount>0&&<p className="border-b border-[#edf0ee] px-4 py-2 text-[10px] text-[#9a6b2f]">{mixedCurrencyCount} invoice(s) use a different currency and are excluded from the outstanding total; no currency conversion is applied.</p>}
       {loading?<div className="flex min-h-[160px] items-center justify-center gap-2 text-[12px] text-[#929c95]"><LoaderCircle size={16} className="animate-spin"/>Loading invoices...</div>:filtered.length===0?<div className="px-5 py-12 text-center"><div className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-[#edf7f0] text-[#16865b]"><ReceiptText size={19}/></div><p className="mt-3 text-[12px] font-semibold">{invoices.length?"No matching invoices":"No invoices yet"}</p><p className="mt-1 text-[10px] text-[#929c95]">{invoices.length?"Try another search or status filter.":"Create your first invoice to start tracking customer payments."}</p></div>:filtered.map(invoice=>{
         const state=statusFor(invoice);
         const customer=customers.find(item=>item.id===invoice.customer_id);
