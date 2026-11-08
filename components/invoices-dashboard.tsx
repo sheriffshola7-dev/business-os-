@@ -153,6 +153,8 @@ export default function InvoicesDashboard({supabase,workspaceId,userId,currency,
   }
 
   return <div className="space-y-4">
+    {error&&<div role="alert" className="flex items-start justify-between gap-3 rounded-lg border border-[#f0d9d9] bg-[#fff6f6] px-4 py-3 text-[11px] text-[#a33d3d]"><span>{error}</span><button type="button" onClick={()=>setError("")} aria-label="Dismiss error"><X size={14}/></button></div>}
+    {notice&&<div role="status" className="flex items-center justify-between gap-3 rounded-lg border border-[#dcece1] bg-[#f1f8f3] px-4 py-3 text-[11px] text-[#326448]"><span>{notice}</span><button type="button" onClick={()=>setNotice("")} aria-label="Dismiss message"><X size={14}/></button></div>}
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <div className="subtle-card p-4"><div className="flex items-center justify-between text-[10px] text-[#929c95]">Invoices <ReceiptText size={15}/></div><p className="mt-2 text-[22px] font-bold">{invoices.length}</p><p className="mt-1 text-[10px] text-[#929c95]">Latest 100 workspace records</p></div>
       <div className="subtle-card p-4"><div className="flex items-center justify-between text-[10px] text-[#929c95]">Outstanding <ArrowUpRight size={15}/></div><p className="mt-2 text-[20px] font-bold">{formatMoney(outstanding,currency)}</p><p className="mt-1 text-[10px] text-[#929c95]">Current workspace currency only</p></div>
