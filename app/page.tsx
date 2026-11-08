@@ -135,7 +135,7 @@ export default function Home(){
     if(editingInventoryId){const {data,error:editError}=await supabase.from("inventory_items").update(values).eq("id",editingInventoryId).eq("workspace_id",workspaceId).select("id,name,sku,quantity,reorder_level,unit_price").single();if(editError)throw editError;setInventory(current=>current.map(item=>item.id===editingInventoryId?data as InventoryItem:item));setNotice("Product details updated.");}
     else{const {data,error:insertError}=await supabase.from("inventory_items").insert({...values,quantity:Number(inventoryQuantity),workspace_id:workspaceId,created_by:user.id}).select("id,name,sku,quantity,reorder_level,unit_price").single();if(insertError)throw insertError;setInventory(current=>[...current,data as InventoryItem].sort((a,b)=>a.name.localeCompare(b.name)));setNotice("Product added to your inventory.");}
    }else if(modal==="stock"&&stockItemId&&Number(stockChange)!==0){
-    const {error:adjustError}=await supabase.rpc("adjust_inventory_stock",{p_inventory_item_id:stockItemId,p_quantity_change:Number(stockChange),p_note:stockNote.trim()||null});if(adjustError)throw adjustError;
+    const {error:adjustError}=await supabase.rpc("adjust_inventory_stock",{p_inventory_item_id:stockItemId,p_quantity_change:Number(stockChange),p_note:stockNote.trim()});if(adjustError)throw adjustError;
     setInventory(current=>current.map(item=>item.id===stockItemId?{...item,quantity:Number(item.quantity)+Number(stockChange)}:item));setNotice("Stock quantity updated.");
    }
    setModal(null);
