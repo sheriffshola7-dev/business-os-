@@ -129,14 +129,14 @@ export default function Home(){
     const {data,error:insertError}=await supabase.from("sales").insert({workspace_id:workspaceId,description:saleDescription.trim(),amount:Number(saleAmount),currency:"NGN",customer_id:saleCustomerId||null,status:saleStatus,sold_on:saleDate,inventory_item_id:saleInventoryItemId||null,quantity:Number(saleQuantity),created_by:user.id}).select("id,description,amount,currency,status,sold_on,customer_id,inventory_item_id,quantity").single();
     if(insertError)throw insertError;
     setSales(current=>[data as Sale,...current]);setSaleDescription("");setSaleAmount("");setSaleCustomerId("");setSaleStatus("pending");setSaleDate(new Date().toISOString().slice(0,10));setSaleInventoryItemId("");setSaleQuantity("1");setNotice("Sale saved to your workspace.");
-    if(saleStatus==="completed"&&saleInventoryItemId)setInventory(current=>current.map(item=>item.id===saleInventoryItemId?{...item,quantity:Number(item.quantity)-Number(saleQuantity)}:item));
+    if(saleStatus==="completed"&&saleInventoryItemId)await loadData();
    }else if(modal==="inventory"&&inventoryName.trim()&&Number(inventoryQuantity)>=0&&Number(inventoryReorderLevel)>=0){
     const values={name:inventoryName.trim(),sku:inventorySku.trim()||null,reorder_level:Number(inventoryReorderLevel),unit_price:inventoryUnitPrice.trim()?Number(inventoryUnitPrice):null};
     if(editingInventoryId){const {data,error:editError}=await supabase.from("inventory_items").update(values).eq("id",editingInventoryId).eq("workspace_id",workspaceId).select("id,name,sku,quantity,reorder_level,unit_price").single();if(editError)throw editError;setInventory(current=>current.map(item=>item.id===editingInventoryId?data as InventoryItem:item));setNotice("Product details updated.");}
     else{const {data,error:insertError}=await supabase.from("inventory_items").insert({...values,quantity:Number(inventoryQuantity),workspace_id:workspaceId,created_by:user.id}).select("id,name,sku,quantity,reorder_level,unit_price").single();if(insertError)throw insertError;setInventory(current=>[...current,data as InventoryItem].sort((a,b)=>a.name.localeCompare(b.name)));setNotice("Product added to your inventory.");}
    }else if(modal==="stock"&&stockItemId&&Number(stockChange)!==0){
     const {error:adjustError}=await supabase.rpc("adjust_inventory_stock",{p_inventory_item_id:stockItemId,p_quantity_change:Number(stockChange),p_note:stockNote.trim()});if(adjustError)throw adjustError;
-    setInventory(current=>current.map(item=>item.id===stockItemId?{...item,quantity:Number(item.quantity)+Number(stockChange)}:item));setNotice("Stock quantity updated.");
+    await loadData();setNotice("Stock quantity updated.");
    }
    setModal(null);
   }catch(e){setError(e instanceof Error?e.message:"Could not save this record.");}
