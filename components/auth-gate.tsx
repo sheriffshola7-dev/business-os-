@@ -21,33 +21,65 @@ export default function AuthGate({ children }: Props) {
 
   const ensureWorkspace = useCallback(async (currentUser: User) => {
     if (!supabase) throw new Error("Supabase is not configured yet.");
-    const { data: memberships, error: membershipError } = await supabase
+
+    // First reuse an existing membership. This keeps repeat logins idempotent.
+    const { data: membership, error: membershipError } = await supabase
       .from("workspace_members")
       .select("workspace_id")
       .eq("user_id", currentUser.id)
-      .limit(1);
+      .limit(1)
+      .maybeSingle();
 
     if (membershipError) throw membershipError;
-    if (memberships?.length) return;
+    if (membership?.workspace_id) return;
 
-    const workspaceName =
-      currentUser.user_metadata?.business_name?.toString().trim() || "My Business";
-
-    const { data: workspace, error: workspaceError } = await supabase
+    // Recover older accounts that have an owned workspace but no membership row.
+    const { data: existingWorkspace, error: existingWorkspaceError } = await supabase
       .from("workspaces")
-      .insert({ name: workspaceName, created_by: currentUser.id })
       .select("id")
-      .single();
+      .eq("created_by", currentUser.id)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-    if (workspaceError) throw workspaceError;
+    if (existingWorkspaceError) throw existingWorkspaceError;
+
+    let workspaceId = existingWorkspace?.id;
+
+    if (!workspaceId) {
+      const workspaceName =
+        currentUser.user_metadata?.business_name?.toString().trim() || "My Business";
+
+      const { data: workspace, error: workspaceError } = await supabase
+        .from("workspaces")
+        .insert({ name: workspaceName.slice(0, 120), created_by: currentUser.id })
+        .select("id")
+        .single();
+
+      if (workspaceError) throw workspaceError;
+      workspaceId = workspace.id;
+    }
 
     const { error: memberError } = await supabase.from("workspace_members").insert({
-      workspace_id: workspace.id,
+      workspace_id: workspaceId,
       user_id: currentUser.id,
       role: "owner",
     });
 
-    if (memberError) throw memberError;
+    // If another tab completed the same repair first, confirm the membership
+    // exists instead of showing a misleading setup error.
+    if (memberError) {
+      const { data: confirmedMembership, error: confirmError } = await supabase
+        .from("workspace_members")
+        .select("workspace_id")
+        .eq("user_id", currentUser.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (confirmError) throw confirmError;
+      if (confirmedMembership?.workspace_id) return;
+      throw memberError;
+    }
   }, [supabase]);
 
   useEffect(() => {
@@ -67,11 +99,11 @@ export default function AuthGate({ children }: Props) {
       if (alive) setReady(true);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      // SIGNED_IN is intentionally handled by the sign-in/signup flow above,
+      // after ensureWorkspace finishes. Setting the user here caused the
+      // dashboard to mount before the membership row was ready.
       if (event === "SIGNED_OUT") setUser(null);
-      if (event === "SIGNED_IN" && session?.user) {
-        setUser(session.user);
-      }
     });
 
     return () => {
