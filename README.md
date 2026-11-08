@@ -2,20 +2,30 @@
 
 **Build. Manage. Grow.**
 
-A clean, multi-business workspace for managing daily operations, customers, tasks and finances.
+A clean, responsive workspace for managing business operations.
 
 ## Stack
-- Next.js App Router
-- React + TypeScript
-- Tailwind CSS 4
-- Lucide icons
+- Next.js App Router, React and TypeScript
+- Tailwind CSS 4 and Lucide icons
+- Supabase Auth and PostgreSQL with Row Level Security
 - Vercel-ready
 
-## Getting started
-Run npm install, then npm run dev. Open http://localhost:3000.
+## Local setup
+1. Install dependencies with `npm install`.
+2. Copy `.env.example` to `.env.local`.
+3. Add your Supabase project URL and publishable key.
+4. Run `npm run dev` and open `http://localhost:3000`.
 
-## Current milestone
-The first milestone is a responsive dashboard prototype. Figures shown in the preview are sample data. Authentication, Supabase persistence, business workspaces and live reporting are planned for the next milestone.
+## Supabase environment
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+```
 
-## Environment
-Copy .env.example to .env.local when configuring Supabase. Never expose a service-role key in client-side code.
+Use only the publishable key in browser-exposed variables. Never put a Supabase secret or service-role key in a `NEXT_PUBLIC_*` variable.
+
+## Database
+The initial schema includes workspaces, workspace members, tasks, customers, expenses, sales and inventory items. Row Level Security is enabled on every table. New users receive a private workspace after their first successful sign-in.
+
+## Current status
+Email signup/sign-in and the database foundation are connected in the codebase. The dashboard still contains clearly labelled preview/sample content; the next implementation step is wiring dashboard modules to live workspace records.
