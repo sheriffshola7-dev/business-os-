@@ -12,6 +12,14 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Package source ZIP
+        run: git archive --format=zip --output=business-os-preview.zip HEAD
+      - name: Upload source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: business-os-preview
+          path: business-os-preview.zip
+          retention-days: 7
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
