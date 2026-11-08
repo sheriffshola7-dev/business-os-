@@ -132,16 +132,30 @@ Deno.serve(async (req: Request) => {
     if (invitation.email.toLowerCase() !== email) {
       return response(403, { error: "Sign in with the email address this invitation was sent to." });
     }
-    const { error: memberError } = await admin.from("workspace_members").upsert(
-      { workspace_id: invitation.workspace_id, user_id: userData.user.id, role: invitation.role },
-      { onConflict: "workspace_id,user_id", ignoreDuplicates: true },
-    );
-    if (memberError) return response(500, { error: "Could not add you to the workspace." });
-    const { error: updateError } = await admin.from("workspace_invitations")
+    const { data: existingMembership, error: existingMembershipError } = await admin
+      .from("workspace_members")
+      .select("role")
+      .eq("workspace_id", invitation.workspace_id)
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+    if (existingMembershipError) return response(500, { error: "Could not verify your workspace membership." });
+    if (existingMembership && existingMembership.role !== invitation.role) {
+      return response(409, { error: "You already belong to this workspace with a different role. Ask the workspace owner to update your existing membership." });
+    }
+    if (!existingMembership) {
+      const { error: memberError } = await admin.from("workspace_members").insert(
+        { workspace_id: invitation.workspace_id, user_id: userData.user.id, role: invitation.role },
+      );
+      if (memberError) return response(500, { error: "Could not add you to the workspace." });
+    }
+    const { data: acceptedInvitation, error: updateError } = await admin.from("workspace_invitations")
       .update({ status: "accepted", accepted_by: userData.user.id })
       .eq("id", invitation.id)
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
     if (updateError) return response(500, { error: "Membership was created but invitation status could not be updated." });
+    if (!acceptedInvitation) return response(410, { error: "This invitation is no longer active. Ask the workspace owner for a new invitation." });
     return response(200, { accepted: true, workspaceId: invitation.workspace_id });
   }
 
@@ -155,9 +169,12 @@ Deno.serve(async (req: Request) => {
     if (!membership || !["owner", "admin"].includes(membership.role)) {
       return response(403, { error: "Only workspace owners can revoke invitations." });
     }
-    const { error: revokeError } = await admin.from("workspace_invitations")
-      .update({ status: "revoked" }).eq("id", invitationId).eq("status", "pending");
+    if (invitation.status !== "pending") return response(409, { error: "Only pending invitations can be revoked." });
+    const { data: revokedInvitation, error: revokeError } = await admin.from("workspace_invitations")
+      .update({ status: "revoked" }).eq("id", invitationId).eq("status", "pending")
+      .select("id").maybeSingle();
     if (revokeError) return response(500, { error: "Could not revoke invitation." });
+    if (!revokedInvitation) return response(409, { error: "This invitation is no longer pending." });
     return response(200, { revoked: true });
   }
 
