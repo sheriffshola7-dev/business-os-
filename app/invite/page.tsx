@@ -12,6 +12,7 @@ export default function AcceptInvitationPage() {
   useEffect(() => {
     const invitationId = new URLSearchParams(window.location.search).get("invitation") || "";
     const supabase = createSupabaseBrowserClient();
+    if (!supabase) { setStatus("error"); setMessage("Business OS is not connected to Supabase. Please contact the workspace owner."); return; }
     let active = true;
     let running = false;
 
