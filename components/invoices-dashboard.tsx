@@ -60,7 +60,7 @@ export default function InvoicesDashboard({supabase,workspaceId,userId,currency,
     if(loadError)setError(loadError.message);
     else setInvoices((data||[]) as Invoice[]);
     setLoading(false);
-  },[supabase,workspaceId]);
+  },[db,workspaceId]);
 
   useEffect(()=>{void loadInvoices();},[loadInvoices]);
 
