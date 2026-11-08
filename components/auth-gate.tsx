@@ -87,7 +87,12 @@ export default function AuthGate({ children }: Props) {
     let alive = true;
     supabase.auth.getUser().then(async ({ data, error: authError }) => {
       if (!alive) return;
-      if (authError) setError(authError.message);
+      // A visitor with no active session is simply signed out. Supabase may
+      // return AuthSessionMissingError from getUser() in that normal state.
+      const isMissingSession =
+        authError?.name === "AuthSessionMissingError" ||
+        authError?.message?.toLowerCase().includes("auth session missing");
+      if (authError && !isMissingSession) setError(authError.message);
       if (data.user) {
         try {
           await ensureWorkspace(data.user);
