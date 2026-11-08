@@ -317,8 +317,10 @@ export default function Home(){
    </div>
 
    <div className="mt-5 space-y-3">
-    {modal === "task" && <label className="block text-[11px] font-semibold text-[#526057]">Task name<input autoFocus required value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="e.g. Prepare monthly report" className="field"/></label>
-     <label className="block text-[11px] font-semibold text-[#526057]">Due date (optional)<input type="date" value={taskDueDate} onChange={(event)=>setTaskDueDate(event.target.value)} className="field"/></label>}
+    {modal === "task" && <>
+     <label className="block text-[11px] font-semibold text-[#526057]">Task name<input autoFocus required value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="e.g. Prepare monthly report" className="field"/></label>
+     <label className="block text-[11px] font-semibold text-[#526057]">Due date (optional)<input type="date" value={taskDueDate} onChange={(event)=>setTaskDueDate(event.target.value)} className="field"/></label>
+    </>}
 
     {modal === "customer" && <>
      <label className="block text-[11px] font-semibold text-[#526057]">Customer name<input autoFocus required value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Customer name" className="field"/></label>
