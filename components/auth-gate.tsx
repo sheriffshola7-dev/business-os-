@@ -20,6 +20,7 @@ export default function AuthGate({ children }: Props) {
   const supabase = createSupabaseBrowserClient();
 
   const ensureWorkspace = useCallback(async (currentUser: User) => {
+    if (!supabase) throw new Error("Supabase is not configured yet.");
     const { data: memberships, error: membershipError } = await supabase
       .from("workspace_members")
       .select("workspace_id")
@@ -50,6 +51,7 @@ export default function AuthGate({ children }: Props) {
   }, [supabase]);
 
   useEffect(() => {
+    if (!supabase) { setReady(true); return; }
     let alive = true;
     supabase.auth.getUser().then(async ({ data, error: authError }) => {
       if (!alive) return;
@@ -80,6 +82,7 @@ export default function AuthGate({ children }: Props) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!supabase) { setError("Supabase environment variables are not configured."); return; }
     setBusy(true);
     setError("");
     setMessage("");
@@ -119,6 +122,7 @@ export default function AuthGate({ children }: Props) {
   }
 
   async function signOut() {
+    if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
   }
