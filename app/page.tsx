@@ -148,17 +148,17 @@ export default function Home(){
  const unreadNotificationCount=activeNotifications.filter(item=>!item.isRead).length;
  async function markNotificationRead(id:string){
   const scheduled=scheduledNotifications.some(item=>item.id===id);
-  if(scheduled){if(!supabase)return;const readAt=new Date().toISOString();setScheduledNotifications(current=>current.map(item=>item.id===id?{...item,read_at:readAt}:item));const db=supabase;const {error:updateError}=await db.from("business_notifications").update({read_at:readAt}).eq("id",id).eq("user_id",user?.id).eq("workspace_id",workspaceId);if(updateError){setError("Could not save notification status: "+updateError.message);void loadData();}}
+  if(scheduled){if(!supabase||!user)return;const readAt=new Date().toISOString();setScheduledNotifications(current=>current.map(item=>item.id===id?{...item,read_at:readAt}:item));const db=supabase;const {error:updateError}=await db.from("business_notifications").update({read_at:readAt}).eq("id",id).eq("user_id",user.id).eq("workspace_id",workspaceId);if(updateError){setError("Could not save notification status: "+updateError.message);void loadData();}}
   else setNotificationReadIds(current=>current.includes(id)?current:[...current,id]);
  }
  async function dismissNotification(id:string){
   const scheduled=scheduledNotifications.some(item=>item.id===id);
-  if(scheduled){if(!supabase)return;const dismissedAt=new Date().toISOString();setScheduledNotifications(current=>current.map(item=>item.id===id?{...item,dismissed_at:dismissedAt}:item));const db=supabase as any;const {error:updateError}=await db.from("business_notifications").update({dismissed_at:dismissedAt}).eq("id",id).eq("user_id",user?.id).eq("workspace_id",workspaceId);if(updateError){setError("Could not dismiss notification: "+updateError.message);void loadData();}}
+  if(scheduled){if(!supabase||!user)return;const dismissedAt=new Date().toISOString();setScheduledNotifications(current=>current.map(item=>item.id===id?{...item,dismissed_at:dismissedAt}:item));const db=supabase as any;const {error:updateError}=await db.from("business_notifications").update({dismissed_at:dismissedAt}).eq("id",id).eq("user_id",user?.id).eq("workspace_id",workspaceId);if(updateError){setError("Could not dismiss notification: "+updateError.message);void loadData();}}
   else setNotificationDismissedIds(current=>current.includes(id)?current:[...current,id]);
  }
  async function markAllNotificationsRead(){
   const pending=scheduledNotifications.filter(item=>!item.read_at&&!item.dismissed_at);
-  if(pending.length){if(!supabase)return;const readAt=new Date().toISOString();setScheduledNotifications(current=>current.map(item=>item.read_at||item.dismissed_at?item:{...item,read_at:readAt}));const db=supabase as any;const {error:updateError}=await db.from("business_notifications").update({read_at:readAt}).eq("user_id",user?.id).eq("workspace_id",workspaceId).is("read_at",null).is("dismissed_at",null);if(updateError){setError("Could not mark notifications as read: "+updateError.message);void loadData();}}
+  if(pending.length){if(!supabase||!user)return;const readAt=new Date().toISOString();setScheduledNotifications(current=>current.map(item=>item.read_at||item.dismissed_at?item:{...item,read_at:readAt}));const db=supabase as any;const {error:updateError}=await db.from("business_notifications").update({read_at:readAt}).eq("user_id",user?.id).eq("workspace_id",workspaceId).is("read_at",null).is("dismissed_at",null);if(updateError){setError("Could not mark notifications as read: "+updateError.message);void loadData();}}
   setNotificationReadIds(current=>Array.from(new Set([...current,...liveDisplay.map(item=>item.id)])));
  }
  const canManageBusinessRecords=workspaceRole==="owner"||workspaceRole==="admin"||workspaceRole==="manager";
