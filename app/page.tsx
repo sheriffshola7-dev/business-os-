@@ -1,8 +1,6 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/database.types";
 import { Activity, ArrowDownUp, ArrowRight, Bell, BriefcaseBusiness, Check, ChevronDown, CircleHelp, CreditCard, FileText, LayoutDashboard, LoaderCircle, ReceiptText, LogOut, Menu, Moon, Package, Pencil, Plus, Settings, ShoppingBag, Sun, Target, TrendingUp, Users, Wallet, X, Zap } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import TeamManagement from "@/components/team-management";
