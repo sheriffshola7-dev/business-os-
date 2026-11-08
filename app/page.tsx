@@ -75,7 +75,7 @@ export default function Home(){
    if(userError)throw userError;
    if(!userData.user){setLoading(false);return;}
    setUser(userData.user);
-   const {data:membership,error:memberError}=await supabase.from("workspace_members").select("workspace_id,role, workspaces(name,currency,country_code)").eq("user_id",userData.user.id).limit(1).maybeSingle();
+   const preferredWorkspaceId=new URLSearchParams(window.location.search).get("workspace");\n   let membershipQuery=supabase.from("workspace_members").select("workspace_id,role, workspaces(name,currency,country_code)").eq("user_id",userData.user.id);\n   if(preferredWorkspaceId)membershipQuery=membershipQuery.eq("workspace_id",preferredWorkspaceId);\n   const {data:membership,error:memberError}=await membershipQuery.limit(1).maybeSingle();
    if(memberError)throw memberError;
    if(!membership){setError("Your account does not have a workspace yet. Sign out and sign in again to initialise it.");setLoading(false);return;}
    const wsId=membership.workspace_id;
