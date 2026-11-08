@@ -1,18 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { CheckCircle2, LoaderCircle, LogIn } from "lucide-react";
 
 export default function AcceptInvitationPage() {
-  const searchParams = useSearchParams();
-  const invitationId = searchParams.get("invitation") || "";
   const [status, setStatus] = useState<"loading" | "signed_out" | "accepted" | "error">("loading");
   const [message, setMessage] = useState("Checking your invitation...");
   const [workspaceId, setWorkspaceId] = useState("");
 
   useEffect(() => {
+    const invitationId = new URLSearchParams(window.location.search).get("invitation") || "";
     const supabase = createSupabaseBrowserClient();
     let active = true;
     let running = false;
@@ -52,7 +50,7 @@ export default function AcceptInvitationPage() {
       if (event === "SIGNED_IN") void accept();
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
-  }, [invitationId]);
+  }, []);
 
   function continueToWorkspace() {
     window.location.href = workspaceId ? "/?workspace=" + encodeURIComponent(workspaceId) : "/";
