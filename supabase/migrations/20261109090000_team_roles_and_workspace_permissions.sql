@@ -3,6 +3,27 @@
 
 create schema if not exists private;
 
+create or replace function private.has_workspace_role(
+  p_workspace_id uuid,
+  p_allowed_roles text[]
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = p_workspace_id
+      and wm.user_id = (select auth.uid())
+      and wm.role = any(p_allowed_roles)
+  );
+$;
+revoke all on function private.has_workspace_role(uuid, text[]) from public, anon;
+grant usage on schema private to authenticated;
+grant execute on function private.has_workspace_role(uuid, text[]) to authenticated;
+
 alter table public.workspaces
   add column if not exists country_code text,
   add column if not exists currency text not null default 'USD';
@@ -46,27 +67,6 @@ drop policy if exists "workspace leaders view invitations" on public.workspace_i
 create policy "workspace leaders view invitations"
 on public.workspace_invitations for select to authenticated
 using ((select private.has_workspace_role(workspace_id, array['owner','admin'])));
-
-create or replace function private.has_workspace_role(
-  p_workspace_id uuid,
-  p_allowed_roles text[]
-)
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select exists (
-    select 1 from public.workspace_members wm
-    where wm.workspace_id = p_workspace_id
-      and wm.user_id = (select auth.uid())
-      and wm.role = any(p_allowed_roles)
-  );
-$$;
-revoke all on function private.has_workspace_role(uuid, text[]) from public, anon;
-grant usage on schema private to authenticated;
-grant execute on function private.has_workspace_role(uuid, text[]) to authenticated;
 
 -- Remove the broad member policies before installing role-aware policies.
 drop policy if exists "users can view their own memberships" on public.workspace_members;
