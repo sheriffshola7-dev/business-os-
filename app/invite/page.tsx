@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { CheckCircle2, LoaderCircle, LogIn } from "lucide-react";
 
@@ -64,9 +65,9 @@ export default function AcceptInvitationPage() {
       </div>
       <h1 className="mt-5 text-xl font-bold text-[#27332b]">Business OS invitation</h1>
       <p className="mt-3 text-sm leading-6 text-[#718078]">{message}</p>
-      {status === "signed_out" && <a href="/?auth=login" className="primary-button mt-6 inline-flex">Go to sign in</a>}
+      {status === "signed_out" && <Link href="/?auth=login" className="primary-button mt-6 inline-flex">Go to sign in</Link>}
       {status === "accepted" && <button onClick={continueToWorkspace} className="primary-button mt-6">Continue to workspace</button>}
-      {status === "error" && <a href="/" className="action-button mt-6 inline-flex">Return to Business OS</a>}
+      {status === "error" && <Link href="/" className="action-button mt-6 inline-flex">Return to Business OS</Link>}
     </section>
   </main>;
 }
