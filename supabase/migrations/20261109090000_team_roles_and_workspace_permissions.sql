@@ -12,14 +12,14 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $function$
   select exists (
     select 1 from public.workspace_members wm
     where wm.workspace_id = p_workspace_id
       and wm.user_id = (select auth.uid())
       and wm.role = any(p_allowed_roles)
   );
-$;
+$function$;
 revoke all on function private.has_workspace_role(uuid, text[]) from public, anon;
 grant usage on schema private to authenticated;
 grant execute on function private.has_workspace_role(uuid, text[]) to authenticated;
