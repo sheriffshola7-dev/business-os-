@@ -152,6 +152,64 @@ export type Database = {
           },
         ]
       }
+      inventory_movements: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          inventory_item_id: string
+          movement_type: string
+          note: string | null
+          quantity_change: number
+          sale_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          inventory_item_id: string
+          movement_type: string
+          note?: string | null
+          quantity_change: number
+          sale_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          inventory_item_id?: string
+          movement_type?: string
+          note?: string | null
+          quantity_change?: number
+          sale_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_item_workspace_fkey"
+            columns: ["inventory_item_id", "workspace_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id", "workspace_id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales: {
         Row: {
           amount: number
@@ -161,6 +219,8 @@ export type Database = {
           customer_id: string | null
           description: string
           id: string
+          inventory_item_id: string | null
+          quantity: number
           sold_on: string
           status: string
           workspace_id: string
@@ -173,6 +233,8 @@ export type Database = {
           customer_id?: string | null
           description: string
           id?: string
+          inventory_item_id?: string | null
+          quantity?: number
           sold_on?: string
           status?: string
           workspace_id: string
@@ -185,6 +247,8 @@ export type Database = {
           customer_id?: string | null
           description?: string
           id?: string
+          inventory_item_id?: string | null
+          quantity?: number
           sold_on?: string
           status?: string
           workspace_id?: string
@@ -196,6 +260,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_inventory_item_workspace_fkey"
+            columns: ["inventory_item_id", "workspace_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id", "workspace_id"]
           },
           {
             foreignKeyName: "sales_workspace_id_fkey"
@@ -314,7 +385,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      adjust_inventory_stock: {
+        Args: {
+          p_inventory_item_id: string
+          p_note?: string
+          p_quantity_change: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
