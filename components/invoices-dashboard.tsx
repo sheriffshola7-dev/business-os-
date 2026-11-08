@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowDownRight, ArrowUpRight, CalendarDays, Check, ChevronRight, CircleDollarSign, FilePlus2, LoaderCircle, Plus, ReceiptText, Search, X } from "lucide-react";
 
 type InvoiceStatus = "draft" | "sent" | "partially_paid" | "paid" | "void";
@@ -94,7 +94,7 @@ export default function InvoicesDashboard({supabase,workspaceId,userId,currency,
     setLines([{description:"",quantity:"1",unit_price:""}]);
   }
 
-  async function createInvoice(event:React.FormEvent<HTMLFormElement>){
+  async function createInvoice(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     if(!canManage||!lines.length||lines.some(line=>!line.description.trim()||Number(line.quantity)<=0||Number(line.unit_price)<0))return;
     setSaving(true);setError("");setNotice("");
