@@ -393,6 +393,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      change_workspace_member_role: {
+        Args: { p_membership_id: string; p_new_role: string }
+        Returns: undefined
+      }
+      remove_workspace_member: {
+        Args: { p_membership_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
