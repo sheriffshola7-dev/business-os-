@@ -14,13 +14,14 @@ export default function AcceptInvitationPage() {
     const invitationId = new URLSearchParams(window.location.search).get("invitation") || "";
     const supabase = createSupabaseBrowserClient();
     if (!supabase) { setStatus("error"); setMessage("Business OS is not connected to Supabase. Please contact the workspace owner."); return; }
+    const client = supabase;
     let active = true;
     let running = false;
 
     async function accept() {
       if (running || !invitationId) return;
       running = true;
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData } = await client.auth.getSession();
       if (!active) return;
       if (!sessionData.session) {
         setStatus("signed_out");
@@ -28,7 +29,7 @@ export default function AcceptInvitationPage() {
         running = false;
         return;
       }
-      const { data, error } = await supabase.functions.invoke("team-invitations", {
+      const { data, error } = await client.functions.invoke("team-invitations", {
         body: { action: "accept", invitationId },
       });
       if (!active) return;
@@ -48,7 +49,7 @@ export default function AcceptInvitationPage() {
     } else {
       void accept();
     }
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+    const { data: listener } = client.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN") void accept();
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
