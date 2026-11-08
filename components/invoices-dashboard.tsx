@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { ArrowDownRight, ArrowUpRight, CalendarDays, Check, ChevronRight, CircleDollarSign, FilePlus2, LoaderCircle, Plus, ReceiptText, Search, X } from "lucide-react";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
+import { ArrowUpRight, CalendarDays, Check, ChevronRight, FilePlus2, LoaderCircle, Plus, ReceiptText, Search, X } from "lucide-react";
 
 type InvoiceStatus = "draft" | "sent" | "partially_paid" | "paid" | "void";
 type Invoice = {
@@ -24,8 +26,8 @@ function statusFor(invoice:Invoice){
   return invoice.status;
 }
 
-export default function InvoicesDashboard({supabase,workspaceId,userId,currency,role,customers}:{supabase:any;workspaceId:string;userId:string;currency:string;role:string;customers:Customer[]}){
-  const db=useMemo(()=>supabase as any,[supabase]);
+export default function InvoicesDashboard({supabase,workspaceId,userId,currency,role,customers}:{supabase:SupabaseClient<Database>;workspaceId:string;userId:string;currency:string;role:string;customers:Customer[]}){
+  const db=supabase;
   const [invoices,setInvoices]=useState<Invoice[]>([]);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
@@ -58,7 +60,7 @@ export default function InvoicesDashboard({supabase,workspaceId,userId,currency,
     if(loadError)setError(loadError.message);
     else setInvoices((data||[]) as Invoice[]);
     setLoading(false);
-  },[db,workspaceId]);
+  },[supabase,workspaceId]);
 
   useEffect(()=>{void loadInvoices();},[loadInvoices]);
 
