@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, X, LoaderCircle, CheckSquare, Users, Wallet, TrendingUp, Package, ReceiptText } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
@@ -13,6 +13,7 @@ export default function GlobalSearch({supabase,workspaceId,onNavigate}:Props){
   const [query,setQuery]=useState("");
   const [results,setResults]=useState<Result[]>([]);
   const [loading,setLoading]=useState(false);
+  const [searchError,setSearchError]=useState("");
   const [open,setOpen]=useState(false);
   const [mobileOpen,setMobileOpen]=useState(false);
   const rootRef=useRef<HTMLDivElement>(null);
@@ -29,18 +30,19 @@ export default function GlobalSearch({supabase,workspaceId,onNavigate}:Props){
 
   useEffect(()=>{
     const term=query.trim();
-    if(!term||term.length<2||!supabase||!workspaceId){setResults([]);setLoading(false);return;}
+    if(!term||term.length<2||!supabase||!workspaceId){setResults([]);setLoading(false);setSearchError("");return;}
     let cancelled=false;
     const timer=window.setTimeout(async()=>{
-      setLoading(true);
+      setLoading(true);setSearchError("");
+      const safeTerm=term.replace(/[(),.%_\\"]/g," ").trim();
       const pattern="%"+term.replace(/[\\%_]/g,"\\$&")+"%";
       try{
         const [tasks,customers,expenses,sales,inventory,invoices]=await Promise.all([
           supabase.from("tasks").select("id,title,status,due_date").eq("workspace_id",workspaceId).ilike("title",pattern).order("created_at",{ascending:false}).limit(5),
-          supabase.from("customers").select("id,name,email,company").eq("workspace_id",workspaceId).ilike("name",pattern).order("created_at",{ascending:false}).limit(5),
+          supabase.from("customers").select("id,name,email,company").eq("workspace_id",workspaceId).or("name.ilike.%"+safeTerm+"%,email.ilike.%"+safeTerm+"%,company.ilike.%"+safeTerm+"%").order("created_at",{ascending:false}).limit(5),
           supabase.from("expenses").select("id,description,amount,currency,incurred_on").eq("workspace_id",workspaceId).ilike("description",pattern).order("incurred_on",{ascending:false}).limit(5),
           supabase.from("sales").select("id,description,amount,currency,status,sold_on").eq("workspace_id",workspaceId).ilike("description",pattern).order("sold_on",{ascending:false}).limit(5),
-          supabase.from("inventory_items").select("id,name,sku,quantity,currency").eq("workspace_id",workspaceId).ilike("name",pattern).order("name",{ascending:true}).limit(5),
+          supabase.from("inventory_items").select("id,name,sku,quantity,currency").eq("workspace_id",workspaceId).or("name.ilike.%"+safeTerm+"%,sku.ilike.%"+safeTerm+"%").order("name",{ascending:true}).limit(5),
           supabase.from("invoices").select("id,invoice_number,status,total_amount,currency,due_date").eq("workspace_id",workspaceId).ilike("invoice_number",pattern).order("created_at",{ascending:false}).limit(5)
         ]);
         const failed=[tasks,customers,expenses,sales,inventory,invoices].find(item=>item.error);
@@ -55,7 +57,7 @@ export default function GlobalSearch({supabase,workspaceId,onNavigate}:Props){
           ...(invoices.data||[]).map(item=>({id:item.id,title:item.invoice_number,detail:"Invoice · "+item.status+" · "+new Intl.NumberFormat(undefined,{style:"currency",currency:item.currency,maximumFractionDigits:2}).format(Number(item.total_amount)),section:"Invoices" as const,icon:"invoice" as const}))
         ];
         setResults(found);
-      }catch{if(!cancelled)setResults([]);}
+      }catch(error){if(!cancelled){setResults([]);setSearchError(error instanceof Error?error.message:"Search could not be completed.");}}
       finally{if(!cancelled)setLoading(false);}
     },250);
     return()=>{cancelled=true;window.clearTimeout(timer);};
@@ -69,9 +71,9 @@ export default function GlobalSearch({supabase,workspaceId,onNavigate}:Props){
     <input ref={inputRef} aria-label="Search your workspace" placeholder="Search everything..." value={query} onFocus={()=>setOpen(true)} onChange={event=>{setQuery(event.target.value);setOpen(true);}} className="w-full rounded-lg border border-[#e9eeeb] bg-[#fbfcfb] py-2 pl-9 pr-8 text-[11px] text-[#46534b] outline-none focus:border-[#b7d5c1]"/>
     {query&&<button type="button" aria-label="Clear search" onClick={()=>setQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[#929c95]"><X size={12}/></button>}
   </div>;
-  const panel=open&&<div className="absolute right-0 top-[calc(100%+8px)] z-[70] w-[min(390px,calc(100vw-24px))] overflow-hidden rounded-xl border border-[#e6ebe7] bg-white shadow-xl">
+  const panel=open&&<div className="fixed left-3 right-3 top-[112px] z-[70] overflow-hidden rounded-xl border border-[#e6ebe7] bg-white shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[min(390px,calc(100vw-24px))]">
     <div className="flex items-center justify-between border-b border-[#edf0ee] px-3 py-2.5"><span className="text-[10px] font-semibold text-[#89938d]">Workspace results</span>{loading?<LoaderCircle size={13} className="animate-spin text-[#16865b]"/>:<span className="text-[9px] text-[#a0aaa4]">{results.length} found</span>}</div>
-    {!query.trim()||query.trim().length<2?<p className="px-4 py-5 text-center text-[11px] text-[#929c95]">Type at least 2 characters to search tasks, customers, finances, sales, inventory and invoices.</p>:loading&&results.length===0?<p className="px-4 py-5 text-center text-[11px] text-[#929c95]">Searching this workspace…</p>:results.length===0?<p className="px-4 py-5 text-center text-[11px] text-[#929c95]">No matching records found.</p>:<div className="max-h-[min(420px,60vh)] overflow-y-auto">{results.map(item=>{const Icon=iconFor(item.icon);return <button type="button" key={item.section+item.id} onClick={()=>choose(item)} className="flex w-full items-start gap-3 border-b border-[#f0f3f1] px-3 py-3 text-left last:border-0 hover:bg-[#f7faf8]"><span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#edf7f0] text-[#16865b]"><Icon size={14}/></span><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-semibold text-[#46534b]">{item.title}</span><span className="mt-1 block truncate text-[10px] text-[#929c95]">{item.detail||item.section}</span></span><span className="shrink-0 pt-0.5 text-[9px] text-[#929c95]">{item.section}</span></button>;})}</div>}
+    {searchError?<p className="px-4 py-5 text-center text-[11px] text-[#a33d3d]">{searchError}</p>:!query.trim()||query.trim().length<2?<p className="px-4 py-5 text-center text-[11px] text-[#929c95]">Type at least 2 characters to search tasks, customers, finances, sales, inventory and invoices.</p>:loading&&results.length===0?<p className="px-4 py-5 text-center text-[11px] text-[#929c95]">Searching this workspace…</p>:results.length===0?<p className="px-4 py-5 text-center text-[11px] text-[#929c95]">No matching records found.</p>:<div className="max-h-[min(420px,60vh)] overflow-y-auto">{results.map(item=>{const Icon=iconFor(item.icon);return <button type="button" key={item.section+item.id} onClick={()=>choose(item)} className="flex w-full items-start gap-3 border-b border-[#f0f3f1] px-3 py-3 text-left last:border-0 hover:bg-[#f7faf8]"><span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#edf7f0] text-[#16865b]"><Icon size={14}/></span><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-semibold text-[#46534b]">{item.title}</span><span className="mt-1 block truncate text-[10px] text-[#929c95]">{item.detail||item.section}</span></span><span className="shrink-0 pt-0.5 text-[9px] text-[#929c95]">{item.section}</span></button>;})}</div>}
     <div className="border-t border-[#edf0ee] px-3 py-2 text-[9px] text-[#a0aaa4]">Results are limited to your active workspace and your account's permissions.</div>
   </div>;
 
