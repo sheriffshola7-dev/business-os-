@@ -159,7 +159,7 @@ export default function Home(){
  }
  async function markAllNotificationsRead(){
   const pending=scheduledNotifications.filter(item=>!item.read_at&&!item.dismissed_at);
-  if(pending.length){if(!supabase||!user)return;const readAt=new Date().toISOString();setScheduledNotifications(current=>current.map(item=>item.read_at||item.dismissed_at?item:{...item,read_at:readAt}));const db=supabase as any;const {error:updateError}=await db.from("business_notifications").update({read_at:readAt}).eq("user_id",user?.id).eq("workspace_id",workspaceId).is("read_at",null).is("dismissed_at",null);if(updateError){setError("Could not mark notifications as read: "+updateError.message);void loadData();}}
+  if(pending.length){if(!supabase||!user)return;const readAt=new Date().toISOString();setScheduledNotifications(current=>current.map(item=>item.read_at||item.dismissed_at?item:{...item,read_at:readAt}));const db=supabase;const {error:updateError}=await db.from("business_notifications").update({read_at:readAt}).eq("user_id",user?.id).eq("workspace_id",workspaceId).is("read_at",null).is("dismissed_at",null);if(updateError){setError("Could not mark notifications as read: "+updateError.message);void loadData();}}
   setNotificationReadIds(current=>Array.from(new Set([...current,...liveDisplay.map(item=>item.id)])));
  }
  const canManageBusinessRecords=workspaceRole==="owner"||workspaceRole==="admin"||workspaceRole==="manager";
