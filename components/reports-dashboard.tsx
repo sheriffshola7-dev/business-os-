@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { ElementType } from "react";
 import { BarChart3, Download, TrendingUp, Wallet, CreditCard, Activity } from "lucide-react";
 
 type Sale = { id:string; description:string; amount:number; currency:string; status:"pending"|"completed"|"cancelled"; sold_on:string };
@@ -30,7 +31,7 @@ export default function ReportsDashboard({sales,expenses,tasks,inventory,custome
   const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
   const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="business-os-report.csv";a.click();URL.revokeObjectURL(url);
  }
- const metric=(title:string,value:string,note:string,Icon:typeof Wallet,tone:string)=><div className="subtle-card stat-card min-w-0"><div className="flex items-center justify-between gap-3"><span className="stat-label">{title}</span><span className={"grid h-8 w-8 place-items-center rounded-[9px] "+tone}><Icon size={16}/></span></div><div className="stat-value">{value}</div><div className="mt-2 text-[11px] text-[#7b8580]">{note}</div></div>;
+ const metric=(title:string,value:string,note:string,Icon:ElementType,tone:string)=><div className="subtle-card stat-card min-w-0"><div className="flex items-center justify-between gap-3"><span className="stat-label">{title}</span><span className={"grid h-8 w-8 place-items-center rounded-[9px] "+tone}><Icon size={16}/></span></div><div className="stat-value">{value}</div><div className="mt-2 text-[11px] text-[#7b8580]">{note}</div></div>;
  return <div className="space-y-4">
   <section className="subtle-card p-4 sm:p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-[13px] font-bold">Business performance</h2><p className="mt-1 text-[10px] text-[#929c95]">A summary of records saved in this workspace.</p></div><div className="flex flex-wrap items-center gap-2"><select aria-label="Report period" value={period} onChange={e=>setPeriod(e.target.value as "30"|"90"|"all")} className="rounded-lg border border-[#e9eeeb] bg-white px-3 py-2 text-[10px] text-[#526057]"><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="all">All available records</option></select><button onClick={exportCsv} className="action-button"><Download size={13}/>Export CSV</button></div></div></section>
   <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{metric("Completed revenue",money(revenue,currency),completed.length+" completed sales",TrendingUp,"bg-[#edf7f0] text-[#23845a]")}{metric("Recorded expenses",money(expenseTotal,currency),matchedExpenses.length+" expense records",CreditCard,"bg-[#fff5e9] text-[#c17b2e]")}{metric("Net recorded",money(revenue-expenseTotal,currency),"Revenue minus recorded expenses",Wallet,"bg-[#eef4fb] text-[#4779b7]")}{metric("Pending sales",money(pendingTotal,currency),pending.length+" pending records",Activity,"bg-[#f3f0fb] text-[#8066b5]")}</section>
