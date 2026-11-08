@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Copy, LoaderCircle, MailPlus, RefreshCw, ShieldCheck, UserMinus, Users, XCircle } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
@@ -67,7 +67,7 @@ export default function TeamManagement({ supabase, workspaceId, currentUserId }:
     setBusyId("");
   }
 
-  async function inviteMember(event: React.FormEvent<HTMLFormElement>) {
+  async function inviteMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !isOwner || !inviteEmail.trim()) return;
     setBusyId("invite"); setError(""); setNotice("");
