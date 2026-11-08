@@ -1,5 +1,3 @@
-create unique index if not exists workspace_members_workspace_user_uidx on public.workspace_members(workspace_id, user_id);
-
 drop policy if exists "workspace creators can join own new workspace" on public.workspace_members;
 create policy "workspace creators can join own new workspace"
 on public.workspace_members
