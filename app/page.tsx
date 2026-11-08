@@ -86,8 +86,11 @@ export default function Home(){
    if(!membership){setError("Your account does not have a workspace yet. Sign out and sign in again to initialise it.");setLoading(false);return;}
    const wsId=membership.workspace_id;
    setWorkspaceId(wsId);
-   const joined=membership.workspaces as unknown as {name:string}|null;
+   const joined=membership.workspaces as unknown as {name:string;currency?:string;country_code?:string|null}|null;
    if(joined?.name)setWorkspaceName(joined.name);
+   setWorkspaceCurrency(joined?.currency || "USD");
+   setCountryCode(joined?.country_code || "");
+   setWorkspaceRole(membership.role || "employee");
    const [taskRes,customerRes,expenseRes,saleRes,inventoryRes,movementRes]=await Promise.all([
     supabase.from("tasks").select("id,title,status,due_date,created_at").eq("workspace_id",wsId).order("created_at",{ascending:false}).limit(100),
     supabase.from("customers").select("id,name,email,company,created_at").eq("workspace_id",wsId).order("created_at",{ascending:false}).limit(100),
