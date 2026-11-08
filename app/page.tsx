@@ -6,6 +6,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import TeamManagement from "@/components/team-management";
 import type { User } from "@supabase/supabase-js";
 
+type Workspace = { id:string; name:string; currency:string; country_code:string|null; role:string };
 type Task = { id:string; title:string; status:"todo"|"in_progress"|"done"; due_date:string|null; created_at:string };
 type Customer = { id:string; name:string; email:string|null; company:string|null; created_at:string };
 type Expense = { id:string; description:string; amount:number; currency:string; incurred_on:string };
@@ -33,6 +34,10 @@ export default function Home(){
  const [workspaceCurrency,setWorkspaceCurrency]=useState("USD");
  const [countryCode,setCountryCode]=useState("");
  const [workspaceRole,setWorkspaceRole]=useState("employee");
+ const [workspaces,setWorkspaces]=useState<Workspace[]>([]);
+ const [workspaceMenuOpen,setWorkspaceMenuOpen]=useState(false);
+ const [createWorkspaceOpen,setCreateWorkspaceOpen]=useState(false);
+ const [newWorkspaceName,setNewWorkspaceName]=useState("");
  const [tasks,setTasks]=useState<Task[]>([]);
  const [customers,setCustomers]=useState<Customer[]>([]);
  const [expenses,setExpenses]=useState<Expense[]>([]);
@@ -79,17 +84,17 @@ export default function Home(){
    if(!userData.user){setLoading(false);return;}
    setUser(userData.user);
    const preferredWorkspaceId=new URLSearchParams(window.location.search).get("workspace");
-   let membershipQuery=supabase.from("workspace_members").select("workspace_id,role, workspaces(name,currency,country_code)").eq("user_id",userData.user.id);
-   if(preferredWorkspaceId)membershipQuery=membershipQuery.eq("workspace_id",preferredWorkspaceId);
-   const {data:membership,error:memberError}=await membershipQuery.limit(1).maybeSingle();
+   const {data:memberships,error:memberError}=await supabase.from("workspace_members").select("workspace_id,role,workspaces(name,currency,country_code)").eq("user_id",userData.user.id).order("created_at",{ascending:true});
    if(memberError)throw memberError;
+   const available=(memberships||[]).map((row:any)=>{const joined=row.workspaces as {name:string;currency?:string;country_code?:string|null}|null;return {id:row.workspace_id,name:joined?.name||"Untitled workspace",currency:joined?.currency||"USD",country_code:joined?.country_code||null,role:row.role||"employee"} as Workspace;});
+   setWorkspaces(available);
+   const membership=available.find(item=>item.id===preferredWorkspaceId)||available[0];
    if(!membership){setError("Your account does not have a workspace yet. Sign out and sign in again to initialise it.");setLoading(false);return;}
-   const wsId=membership.workspace_id;
+   const wsId=membership.id;
    setWorkspaceId(wsId);
-   const joined=membership.workspaces as unknown as {name:string;currency?:string;country_code?:string|null}|null;
-   if(joined?.name)setWorkspaceName(joined.name);
-   setWorkspaceCurrency(joined?.currency || "USD");
-   setCountryCode(joined?.country_code || "");
+   setWorkspaceName(membership.name);
+   setWorkspaceCurrency(membership.currency);
+   setCountryCode(membership.country_code || "");
    setWorkspaceRole(membership.role || "employee");
    const [taskRes,customerRes,expenseRes,saleRes,inventoryRes,movementRes]=await Promise.all([
     supabase.from("tasks").select("id,title,status,due_date,created_at").eq("workspace_id",wsId).order("created_at",{ascending:false}).limit(100),
@@ -167,6 +172,27 @@ export default function Home(){
   await loadData();
  }
  const overview=active==="Overview";
+ async function switchWorkspace(id:string){
+  if(id===workspaceId){setWorkspaceMenuOpen(false);return;}
+  const params=new URLSearchParams(window.location.search);params.set("workspace",id);
+  window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+  setWorkspaceMenuOpen(false);setActive("Overview");setMobileOpen(false);await loadData();
+ }
+ async function createWorkspace(event:FormEvent){
+  event.preventDefault();if(!supabase||!user||!newWorkspaceName.trim())return;
+  setBusy(true);setError("");setNotice("");
+  try{
+   const {data:created,error:createError}=await supabase.from("workspaces").insert({name:newWorkspaceName.trim().slice(0,120),created_by:user.id}).select("id").single();
+   if(createError)throw createError;
+   const {error:memberCreateError}=await supabase.from("workspace_members").insert({workspace_id:created.id,user_id:user.id,role:"owner"});
+   if(memberCreateError)throw memberCreateError;
+   const params=new URLSearchParams(window.location.search);params.set("workspace",created.id);
+   window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+   setCreateWorkspaceOpen(false);setWorkspaceMenuOpen(false);setNewWorkspaceName("");setActive("Overview");
+   await loadData();setNotice("New workspace created. You are its owner.");
+  }catch(e){setError(e instanceof Error?e.message:"Could not create this workspace.");}
+  finally{setBusy(false);}
+ }
  const signOut=async()=>{if(supabase)await supabase.auth.signOut();};
 
  return <div data-theme={theme} className="min-h-screen">
@@ -174,7 +200,7 @@ export default function Home(){
  <aside className={"sidebar "+(mobileOpen?"mobile-open":"")}>
   <div className="flex items-center gap-3 px-2"><div className="brand-mark"><BriefcaseBusiness size={18}/></div><div><div className="text-[15px] font-bold tracking-[-.4px]">Business OS</div><div className="mt-0.5 text-[9px] font-semibold tracking-[.13em] text-[#8a958e]">BY SHORLAH CLOUD</div></div></div>
   <div className="nav-label">Workspace</div>
-  <div className="workspace-card"><span className="workspace-avatar">{workspaceName.slice(0,2).toUpperCase()}</span><span className="min-w-0 flex-1"><span className="block truncate text-[12px] font-semibold">{workspaceName}</span><span className="mt-0.5 block text-[10px] text-[#8a958e]">Business workspace</span></span><ChevronDown size={14} className="text-[#8a958e]"/></div>
+  <div className="relative"><button type="button" aria-expanded={workspaceMenuOpen} onClick={()=>setWorkspaceMenuOpen(v=>!v)} className="workspace-card w-full text-left"><span className="workspace-avatar">{workspaceName.slice(0,2).toUpperCase()}</span><span className="min-w-0 flex-1"><span className="block truncate text-[12px] font-semibold">{workspaceName}</span><span className="mt-0.5 block text-[10px] text-[#8a958e]">{workspaces.length} {workspaces.length===1?"workspace":"workspaces"} · {workspaceRole}</span></span><ChevronDown size={14} className={"text-[#8a958e] transition "+(workspaceMenuOpen?"rotate-180":"")}/></button>{workspaceMenuOpen&&<div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 rounded-xl border border-[#e5ebe6] bg-white p-2 shadow-xl"><div className="px-2 py-1.5 text-[9px] font-bold uppercase tracking-[.12em] text-[#929c95]">Your workspaces</div>{workspaces.map(item=><button type="button" key={item.id} onClick={()=>void switchWorkspace(item.id)} className={"flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] "+(item.id===workspaceId?"bg-[#edf7f0] font-semibold text-[#16865b]":"text-[#526057] hover:bg-[#f6f8f6]")}><span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#f0f4f1] text-[9px] font-bold">{item.name.slice(0,2).toUpperCase()}</span><span className="min-w-0 flex-1 truncate">{item.name}</span>{item.id===workspaceId?<Check size={14}/>:null}</button>)}<div className="my-1 border-t border-[#edf0ee]"/><button type="button" onClick={()=>{setWorkspaceMenuOpen(false);setCreateWorkspaceOpen(true);}} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] font-semibold text-[#16865b] hover:bg-[#f1f8f3]"><Plus size={14}/>Create a workspace</button></div>}</div>
   <div className="nav-label">Menu</div><nav className="space-y-1">{navItems.map(({label,icon:Icon})=><button key={label} onClick={()=>{setActive(label);setMobileOpen(false);}} className={"nav-item "+(active===label?"active":"")}><Icon size={16}/><span>{label}</span>{label==="Tasks & projects"&&<span className="ml-auto rounded-full bg-[#f0f3f1] px-2 py-0.5 text-[10px]">{activeTasks}</span>}</button>)}</nav>
   <div className="nav-label">Preferences</div><button onClick={()=>{setActive("Settings");setMobileOpen(false);}} className={"nav-item "+(active==="Settings"?"active":"")}><Settings size={16}/><span>Settings</span></button>
   <button onClick={()=>setNotice("Help and support will be added in a later release.")} className="nav-item"><CircleHelp size={16}/><span>Help & support</span></button>
@@ -231,6 +257,7 @@ export default function Home(){
   </section>:active==="Team"?<TeamManagement supabase={supabase} workspaceId={workspaceId} currentUserId={user?.id||""}/>:<section className="subtle-card flex min-h-[280px] flex-col items-center justify-center px-6 py-12 text-center"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#edf7f0] text-[#16865b]"><BriefcaseBusiness size={21}/></div><h2 className="mt-4 text-[15px] font-bold">{active}</h2><p className="mt-2 max-w-[360px] text-[12px] leading-relaxed text-[#89938d]">This module is being prepared. Your existing business records remain safely stored in your workspace.</p><button onClick={()=>setActive("Overview")} className="action-button mt-5">Back to overview</button></section>}
   <div className="mt-6 flex flex-wrap items-center justify-between gap-2 text-[10px] text-[#a0aaa4]"><span>Business OS by Shorlah Cloud · Build. Manage. Grow.</span><span>{workspaceName} · Live workspace data</span></div>
  </div></main>
+ {createWorkspaceOpen&&<div className="modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setCreateWorkspaceOpen(false);}}><form onSubmit={createWorkspace} className="modal"><div className="flex items-start justify-between gap-4"><div><div className="text-[10px] font-bold uppercase tracking-[.12em] text-[#16865b]">Workspace management</div><h2 className="mt-1 text-[18px] font-bold">Create a workspace</h2><p className="mt-1 text-[11px] text-[#89938d]">Set up a separate space for another business, brand or branch.</p></div><button type="button" aria-label="Close" onClick={()=>setCreateWorkspaceOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-[#8b9690] hover:bg-[#f4f7f4]"><X size={17}/></button></div><label className="mt-5 block text-[11px] font-semibold text-[#526057]">Workspace name<input autoFocus required maxLength={120} value={newWorkspaceName} onChange={event=>setNewWorkspaceName(event.target.value)} placeholder="e.g. Shorlah Retail" className="field"/></label><p className="mt-3 text-[10px] leading-relaxed text-[#929c95]">A new workspace starts with USD ($) as its default currency. You can change its country and currency in Settings.</p><div className="mt-6 flex justify-end gap-2"><button type="button" onClick={()=>setCreateWorkspaceOpen(false)} className="action-button">Cancel</button><button disabled={busy||!newWorkspaceName.trim()} className="primary-button">{busy?<LoaderCircle size={14} className="animate-spin"/>:<Plus size={14}/>}Create workspace</button></div></form></div>}
  {modal && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setModal(null); }}>
   <form onSubmit={saveModal} className="modal">
    <div className="flex items-start justify-between gap-4">
