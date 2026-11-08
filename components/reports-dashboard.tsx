@@ -23,13 +23,13 @@ export default function ReportsDashboard({sales,expenses,tasks,inventory,custome
  const expenseTotal=matchedExpenses.reduce((sum,e)=>sum+Number(e.amount),0);
  const pendingTotal=pending.reduce((sum,s)=>sum+Number(s.amount),0);
  const mismatched=filteredSales.filter(s=>s.currency!==currency).length+filteredExpenses.filter(e=>e.currency!==currency).length;
- const months=useMemo(()=>Array.from({length:6},(_,i)=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-(5-i));const key=d.toISOString().slice(0,7);return {key,label:d.toLocaleDateString(undefined,{month:"short"})};}),[]);
- const chart=months.map(m=>({ ...m, sales:completed.filter(s=>s.sold_on.slice(0,7)===m.key).reduce((n,s)=>n+Number(s.amount),0), expenses:matchedExpenses.filter(e=>e.incurred_on.slice(0,7)===m.key).reduce((n,e)=>n+Number(e.amount),0)}));
+ const months=useMemo(()=>Array.from({length:6},(_,i)=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-(5-i));const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;return {key,label:d.toLocaleDateString(undefined,{month:"short"})};}),[]);
+ const chart=months.map(m=>({ ...m, sales:sales.filter(s=>s.status==="completed"&&s.currency===currency&&s.sold_on.slice(0,7)===m.key).reduce((n,s)=>n+Number(s.amount),0), expenses:expenses.filter(e=>e.currency===currency&&e.incurred_on.slice(0,7)===m.key).reduce((n,e)=>n+Number(e.amount),0)}));
  const max=Math.max(1,...chart.flatMap(m=>[m.sales,m.expenses]));
  function exportCsv(){
   const rows=[["Type","Description","Date","Status","Amount","Currency"],...filteredSales.map(s=>["Sale",s.description,s.sold_on,s.status,s.amount,s.currency]),...filteredExpenses.map(e=>["Expense",e.description,e.incurred_on,"Recorded",e.amount,e.currency]),...tasks.filter(t=>!cutoff||t.created_at.slice(0,10)>=cutoff).map(t=>["Task",t.title,t.created_at.slice(0,10),t.status,"",""])];
   const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
-  const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="business-os-report.csv";a.click();URL.revokeObjectURL(url);
+  const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="business-os-report.csv";a.click();window.setTimeout(()=>URL.revokeObjectURL(url),1000);
  }
  const metric=(title:string,value:string,note:string,Icon:ElementType,tone:string)=><div className="subtle-card stat-card min-w-0"><div className="flex items-center justify-between gap-3"><span className="stat-label">{title}</span><span className={"grid h-8 w-8 place-items-center rounded-[9px] "+tone}><Icon size={16}/></span></div><div className="stat-value">{value}</div><div className="mt-2 text-[11px] text-[#7b8580]">{note}</div></div>;
  return <div className="space-y-4">
