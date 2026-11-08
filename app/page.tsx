@@ -105,7 +105,7 @@ export default function Home(){
    setWorkspaceCurrency(membership.currency);
    setCountryCode(membership.country_code || "");
    setWorkspaceRole(membership.role || "employee");
-   const db=supabase as any;
+   const db=supabase;
    const [taskRes,customerRes,expenseRes,saleRes,inventoryRes,movementRes,notificationRes]=await Promise.all([
     supabase.from("tasks").select("id,title,status,due_date,created_at").eq("workspace_id",wsId).order("created_at",{ascending:false}).limit(100),
     supabase.from("customers").select("id,name,email,company,created_at").eq("workspace_id",wsId).order("created_at",{ascending:false}).limit(100),
