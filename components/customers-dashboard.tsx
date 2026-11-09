@@ -5,7 +5,7 @@ import { CalendarClock, Mail, Phone, Plus, Search, UserRound, X } from "lucide-r
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
-type Client = { id:string; name:string; email:string|null; phone:string|null; company:string|null; notes:string|null; status:string; created_at:string };
+type Client = { id:string; name:string; email:string|null; phone?:string|null; company:string|null; notes?:string|null; status?:string; created_at:string };
 type Interaction = { id:string; customer_id:string; interaction_type:string; subject:string; notes:string|null; follow_up_at:string|null; follow_up_completed_at:string|null; created_by:string; created_at:string };
 type Props = { supabase:SupabaseClient<Database>|null; workspaceId:string; userId:string; role:string; customers?:Client[]; onCustomersChange?:(rows:Client[])=>void };
 
