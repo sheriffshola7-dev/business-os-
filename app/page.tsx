@@ -15,7 +15,7 @@ type Workspace = { id:string; name:string; currency:string; country_code:string|
 type Task = { id:string; title:string; status:"todo"|"in_progress"|"done"; due_date:string|null; created_at:string };
 type Customer = { id:string; name:string; email:string|null; phone?:string|null; company:string|null; notes?:string|null; status?:string; created_at:string };
 type Expense = { id:string; description:string; amount:number; currency:string; incurred_on:string };
-type InventoryItem = { id:string; name:string; sku:string|null; quantity:number; reorder_level:number; unit_price:number|null; currency:string };
+type InventoryItem = { id:string; name:string; sku:string|null; quantity:number; reorder_level:number; unit_price:number|null; currency:string; image_path:string|null; image_url?:string|null };
 type InventoryMovement = { id:string; inventory_item_id:string; movement_type:string; quantity_change:number; note:string|null; created_at:string };
 type Sale = { id:string; description:string; amount:number; currency:string; status:"pending"|"completed"|"cancelled"; sold_on:string; customer_id:string|null; inventory_item_id:string|null; quantity:number };
 type ScheduledNotification = {id:string;source_type:"task"|"inventory"|"sale";source_id:string;title:string;message:string;severity:"normal"|"high";read_at:string|null;dismissed_at:string|null;created_at:string};
@@ -80,6 +80,9 @@ export default function Home(){
  const [inventoryQuantity,setInventoryQuantity]=useState("0");
  const [inventoryReorderLevel,setInventoryReorderLevel]=useState("0");
  const [inventoryUnitPrice,setInventoryUnitPrice]=useState("");
+ const [inventoryImageFile,setInventoryImageFile]=useState<File|null>(null);
+ const [inventoryImagePreview,setInventoryImagePreview]=useState("");
+ const [inventoryRemoveImage,setInventoryRemoveImage]=useState(false);
  const [stockItemId,setStockItemId]=useState("");
  const [stockChange,setStockChange]=useState("");
  const [stockNote,setStockNote]=useState("");
@@ -115,7 +118,7 @@ export default function Home(){
     supabase.from("customers").select("id,name,email,phone,company,notes,status,created_at").eq("workspace_id",wsId).order("created_at",{ascending:false}).limit(100),
     supabase.from("expenses").select("id,description,amount,currency,incurred_on").eq("workspace_id",wsId).order("incurred_on",{ascending:false}).limit(100),
     supabase.from("sales").select("id,description,amount,currency,status,sold_on,customer_id,inventory_item_id,quantity").eq("workspace_id",wsId).order("sold_on",{ascending:false}).limit(100),
-    supabase.from("inventory_items").select("id,name,sku,quantity,reorder_level,unit_price,currency").eq("workspace_id",wsId).order("name",{ascending:true}).limit(200),
+    supabase.from("inventory_items").select("id,name,sku,quantity,reorder_level,unit_price,currency,image_path").eq("workspace_id",wsId).order("name",{ascending:true}).limit(200),
     supabase.from("inventory_movements").select("id,inventory_item_id,movement_type,quantity_change,note,created_at").eq("workspace_id",wsId).order("created_at",{ascending:false}).limit(8),
     db.from("business_notifications").select("id,source_type,source_id,title,message,severity,read_at,dismissed_at,created_at").eq("workspace_id",wsId).eq("user_id",userData.user.id).eq("is_active",true).order("created_at",{ascending:false}).limit(100)
    ]);
@@ -124,7 +127,9 @@ export default function Home(){
    setCustomers((customerRes.data||[]) as Customer[]);
    setExpenses((expenseRes.data||[]) as Expense[]);
    setSales((saleRes.data||[]) as Sale[]);
-   setInventory((inventoryRes.data||[]) as InventoryItem[]);
+   const inventoryRows=(inventoryRes.data||[]) as InventoryItem[];
+   const inventoryWithImages=await Promise.all(inventoryRows.map(async item=>{if(!item.image_path)return {...item,image_url:null};const {data:imageData}=await supabase.storage.from("business-product-images").createSignedUrl(item.image_path,3600);return {...item,image_url:imageData?.signedUrl||null};}));
+   setInventory(inventoryWithImages);
    setInventoryMovements((movementRes.data||[]) as InventoryMovement[]);
    setScheduledNotifications((notificationRes.data||[]) as ScheduledNotification[]);
   }catch(e){setError(e instanceof Error?e.message:"Could not load your business data.");}
@@ -170,7 +175,7 @@ export default function Home(){
  const revenue=sales.filter(s=>s.status==="completed").reduce((sum,s)=>sum+Number(s.amount),0);
  const totalExpenses=expenses.reduce((sum,e)=>sum+Number(e.amount),0);
  const openModal=(kind:ModalKind)=>{setNotice("");setModal(kind);};
- function openInventoryEditor(item?:InventoryItem){setNotice("");setEditingInventoryId(item?.id||"");setInventoryName(item?.name||"");setInventorySku(item?.sku||"");setInventoryQuantity(String(item?.quantity??0));setInventoryReorderLevel(String(item?.reorder_level??0));setInventoryUnitPrice(item?.unit_price==null?"":String(item.unit_price));setModal("inventory");}
+ function openInventoryEditor(item?:InventoryItem){setNotice("");setEditingInventoryId(item?.id||"");setInventoryName(item?.name||"");setInventorySku(item?.sku||"");setInventoryQuantity(String(item?.quantity??0));setInventoryReorderLevel(String(item?.reorder_level??0));setInventoryUnitPrice(item?.unit_price==null?"":String(item.unit_price));setInventoryImageFile(null);setInventoryImagePreview(item?.image_url||"");setInventoryRemoveImage(false);setModal("inventory");}
  function openStockAdjustment(item:InventoryItem){setNotice("");setStockItemId(item.id);setStockChange("");setStockNote("");setModal("stock");}
  async function saveModal(event?:FormEvent){
   event?.preventDefault();
@@ -196,8 +201,15 @@ export default function Home(){
     if(saleStatus==="completed"&&saleInventoryItemId)await loadData();
    }else if(modal==="inventory"&&inventoryName.trim()&&Number(inventoryQuantity)>=0&&Number(inventoryReorderLevel)>=0){
     const values={name:inventoryName.trim(),sku:inventorySku.trim()||null,reorder_level:Number(inventoryReorderLevel),unit_price:inventoryUnitPrice.trim()?Number(inventoryUnitPrice):null};
-    if(editingInventoryId){const {data,error:editError}=await supabase.from("inventory_items").update(values).eq("id",editingInventoryId).eq("workspace_id",workspaceId).select("id,name,sku,quantity,reorder_level,unit_price,currency").single();if(editError)throw editError;setInventory(current=>current.map(item=>item.id===editingInventoryId?data as InventoryItem:item));setNotice("Product details updated.");}
-    else{const {data,error:insertError}=await supabase.from("inventory_items").insert({...values,currency:workspaceCurrency,quantity:Number(inventoryQuantity),workspace_id:workspaceId,created_by:user.id}).select("id,name,sku,quantity,reorder_level,unit_price,currency").single();if(insertError)throw insertError;setInventory(current=>[...current,data as InventoryItem].sort((a,b)=>a.name.localeCompare(b.name)));setNotice("Product added to your inventory.");}
+    let savedItem:InventoryItem;
+    if(editingInventoryId){const {data,error:editError}=await supabase.from("inventory_items").update(values).eq("id",editingInventoryId).eq("workspace_id",workspaceId).select("id,name,sku,quantity,reorder_level,unit_price,currency,image_path").single();if(editError)throw editError;savedItem=data as InventoryItem;}
+    else{const {data,error:insertError}=await supabase.from("inventory_items").insert({...values,currency:workspaceCurrency,quantity:Number(inventoryQuantity),workspace_id:workspaceId,created_by:user.id}).select("id,name,sku,quantity,reorder_level,unit_price,currency,image_path").single();if(insertError)throw insertError;savedItem=data as InventoryItem;}
+    const previousImagePath=savedItem.image_path;
+    if(inventoryImageFile){const extension=inventoryImageFile.type==="image/jpeg"?"jpg":inventoryImageFile.type.split("/")[1];const imagePath=`${workspaceId}/${savedItem.id}/${Date.now()}.${extension}`;const {error:uploadError}=await supabase.storage.from("business-product-images").upload(imagePath,inventoryImageFile,{contentType:inventoryImageFile.type,cacheControl:"3600",upsert:false});if(uploadError)throw uploadError;const {data:updatedItem,error:pathError}=await supabase.from("inventory_items").update({image_path:imagePath}).eq("id",savedItem.id).eq("workspace_id",workspaceId).select("id,name,sku,quantity,reorder_level,unit_price,currency,image_path").single();if(pathError){await supabase.storage.from("business-product-images").remove([imagePath]);throw pathError;}savedItem=updatedItem as InventoryItem;if(previousImagePath)await supabase.storage.from("business-product-images").remove([previousImagePath]);}
+    else if(inventoryRemoveImage&&savedItem.image_path){const oldPath=savedItem.image_path;const {data:updatedItem,error:pathError}=await supabase.from("inventory_items").update({image_path:null}).eq("id",savedItem.id).eq("workspace_id",workspaceId).select("id,name,sku,quantity,reorder_level,unit_price,currency,image_path").single();if(pathError)throw pathError;savedItem=updatedItem as InventoryItem;await supabase.storage.from("business-product-images").remove([oldPath]);}
+    if(savedItem.image_path){const {data:imageData}=await supabase.storage.from("business-product-images").createSignedUrl(savedItem.image_path,3600);savedItem.image_url=imageData?.signedUrl||null;}else savedItem.image_url=null;
+    if(editingInventoryId)setInventory(current=>current.map(item=>item.id===editingInventoryId?savedItem:item));else setInventory(current=>[...current,savedItem].sort((a,b)=>a.name.localeCompare(b.name)));
+    setInventoryImageFile(null);setInventoryImagePreview("");setInventoryRemoveImage(false);setNotice(editingInventoryId?"Product details updated.":"Product added to your inventory.");
    }else if(modal==="stock"&&stockItemId&&Number(stockChange)!==0){
     const {error:adjustError}=await supabase.rpc("adjust_inventory_stock",{p_inventory_item_id:stockItemId,p_quantity_change:Number(stockChange),p_note:stockNote.trim()});if(adjustError)throw adjustError;
     await loadData();setNotice("Stock quantity updated.");
@@ -277,7 +289,7 @@ export default function Home(){
         </div>
         {inventory.map((item) => (
           <div key={item.id} className="table-row">
-            <span className="min-w-0"><span className="block truncate font-semibold text-[#46534b]">{item.name}</span><span className="mt-1 block text-[10px] text-[#929c95]">{item.sku || "No SKU"}{item.unit_price != null ? " · " + money(Number(item.unit_price),item.currency || workspaceCurrency) + " / unit" : ""}</span></span>
+            <span className="flex min-w-0 items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg border border-[#edf0ee] bg-[#f7f9f7] text-[#9aa59e]">{item.image_url?<img src={item.image_url} alt={item.name} className="h-full w-full object-cover"/>:<Package size={17}/>}</span><span className="min-w-0"><span className="block truncate font-semibold text-[#46534b]">{item.name}</span><span className="mt-1 block text-[10px] text-[#929c95]">{item.sku || "No SKU"}{item.unit_price != null ? " · " + money(Number(item.unit_price),item.currency || workspaceCurrency) + " / unit" : ""}</span></span></span>
             <span className="text-[11px] font-semibold">{Number(item.quantity)} <span className="text-[10px] font-normal text-[#929c95]">in stock</span>{Number(item.quantity) <= Number(item.reorder_level) ? <span className="mt-1 block text-[9px] font-semibold text-[#b7792e]">Low stock</span> : null}</span>
             {canManageBusinessRecords&&<span className="flex items-center justify-end gap-1"><button type="button" title="Adjust stock" aria-label={"Adjust stock for " + item.name} onClick={() => openStockAdjustment(item)} className="rounded-lg border border-[#e9eeeb] p-2 text-[#69756e]"><ArrowDownUp size={13}/></button><button type="button" title="Edit product" aria-label={"Edit " + item.name} onClick={() => openInventoryEditor(item)} className="rounded-lg border border-[#e9eeeb] p-2 text-[#69756e]"><Pencil size={13}/></button></span>}
           </div>
@@ -360,6 +372,7 @@ export default function Home(){
      {!editingInventoryId && <label className="block text-[11px] font-semibold text-[#526057]">Starting stock<input required type="number" min="0" step="0.01" value={inventoryQuantity} onChange={(event) => setInventoryQuantity(event.target.value)} className="field"/></label>}
      <label className="block text-[11px] font-semibold text-[#526057]">Low-stock alert level<input required type="number" min="0" step="0.01" value={inventoryReorderLevel} onChange={(event) => setInventoryReorderLevel(event.target.value)} className="field"/></label>
      <label className="block text-[11px] font-semibold text-[#526057]">Unit price ({workspaceCurrency}, optional)<input type="number" min="0" step="0.01" value={inventoryUnitPrice} onChange={(event) => setInventoryUnitPrice(event.target.value)} placeholder="0" className="field"/></label>
+     <div className="space-y-2"><span className="block text-[11px] font-semibold text-[#526057]">Product image (optional)</span><div className="flex items-center gap-3"><div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-xl border border-[#e8eeea] bg-[#f7f9f7] text-[#9aa59e]">{inventoryImagePreview?<img src={inventoryImagePreview} alt="Product preview" className="h-full w-full object-cover"/>:<Package size={24}/>}</div><div className="min-w-0 flex-1"><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#e5ebe6] bg-white px-3 py-2 text-[11px] font-semibold text-[#526057] hover:bg-[#f7faf7]"><Plus size={13}/>{inventoryImagePreview?"Change image":"Choose image"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={event=>{const file=event.target.files?.[0];if(!file)return;if(file.size>5*1024*1024){setError("Choose an image smaller than 5 MB.");event.currentTarget.value="";return;}if(!["image/jpeg","image/png","image/webp","image/gif"].includes(file.type)){setError("Use a JPG, PNG, WEBP or GIF image.");event.currentTarget.value="";return;}setInventoryImageFile(file);setInventoryImagePreview(URL.createObjectURL(file));setInventoryRemoveImage(false);setError("");}}/></label>{inventoryImagePreview&&<button type="button" onClick={()=>{setInventoryImageFile(null);setInventoryImagePreview("");setInventoryRemoveImage(true);}} className="ml-2 text-[10px] font-semibold text-[#a45b5b]">Remove</button>}<p className="mt-2 text-[10px] text-[#929c95]">JPG, PNG, WEBP or GIF · up to 5 MB</p></div></div></div>
     </>}
 
     {modal === "stock" && <>
