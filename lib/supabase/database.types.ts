@@ -14,6 +14,14 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: { id: string; workspace_id: string; actor_id: string | null; action: string; entity_type: string; entity_id: string | null; entity_label: string; changed_fields: string[]; created_at: string }
+        Insert: { id?: string; workspace_id: string; actor_id?: string | null; action: string; entity_type: string; entity_id?: string | null; entity_label?: string; changed_fields?: string[]; created_at?: string }
+        Update: { id?: string; workspace_id?: string; actor_id?: string | null; action?: string; entity_type?: string; entity_id?: string | null; entity_label?: string; changed_fields?: string[]; created_at?: string }
+        Relationships: [
+          { foreignKeyName: "activity_logs_workspace_id_fkey"; columns: ["workspace_id"]; isOneToOne: false; referencedRelation: "workspaces"; referencedColumns: ["id"] }
+        ]
+      }
       customers: {
         Row: {
           company: string | null
