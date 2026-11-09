@@ -50,7 +50,7 @@ export default function CustomersDashboard({supabase,workspaceId,userId,role}:Pr
   let live=true;
   async function loadInteractions(){
    if(!supabase||!selectedId){setInteractions([]);return;}
-   const {data,error:queryError}=await supabase.from("customer_interactions").select("id,customer_id,interaction_type,subject,notes,follow_up_at,created_at").eq("workspace_id",workspaceId).eq("customer_id",selectedId).order("created_at",{ascending:false}).limit(100);
+   const {data,error:queryError}=await supabase.from("customer_interactions").select("id,customer_id,interaction_type,subject,notes,follow_up_at,follow_up_completed_at,created_by,created_at").eq("workspace_id",workspaceId).eq("customer_id",selectedId).order("created_at",{ascending:false}).limit(100);
    if(!live)return;
    if(queryError)setError(queryError.message);else setInteractions((data||[]) as Interaction[]);
   }
@@ -66,7 +66,7 @@ export default function CustomersDashboard({supabase,workspaceId,userId,role}:Pr
  }
  async function saveInteraction(e:FormEvent){
   e.preventDefault();if(!supabase||!selected||!userId)return;setBusy(true);setError("");setNotice("");
-  const {data, error:saveError}=await supabase.from("customer_interactions").insert({workspace_id:workspaceId,customer_id:selected.id,interaction_type:kind,subject:subject.trim(),notes:detail.trim()||null,follow_up_at:followUp?new Date(followUp).toISOString():null,created_by:userId}).select("id,customer_id,interaction_type,subject,notes,follow_up_at,created_at").single();
+  const {data, error:saveError}=await supabase.from("customer_interactions").insert({workspace_id:workspaceId,customer_id:selected.id,interaction_type:kind,subject:subject.trim(),notes:detail.trim()||null,follow_up_at:followUp?new Date(followUp).toISOString():null,created_by:userId}).select("id,customer_id,interaction_type,subject,notes,follow_up_at,follow_up_completed_at,created_by,created_at").single();
   if(saveError)setError(saveError.message);else{setInteractions(rows=>[data as Interaction,...rows]);setSubject("");setDetail("");setFollowUp("");setShowInteraction(false);setNotice("Customer interaction saved.");}
   setBusy(false);
  }
