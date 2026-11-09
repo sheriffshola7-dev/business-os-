@@ -7,13 +7,13 @@ import type { Database } from "@/lib/supabase/database.types";
 
 type Client = { id:string; name:string; email:string|null; phone:string|null; company:string|null; notes:string|null; status:string; created_at:string };
 type Interaction = { id:string; customer_id:string; interaction_type:string; subject:string; notes:string|null; follow_up_at:string|null; follow_up_completed_at:string|null; created_by:string; created_at:string };
-type Props = { supabase:SupabaseClient<Database>|null; workspaceId:string; userId:string; role:string };
+type Props = { supabase:SupabaseClient<Database>|null; workspaceId:string; userId:string; role:string; customers?:Client[]; onCustomersChange?:(rows:Client[])=>void };
 
 const dateLabel=(value:string)=>new Date(value).toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"});
 const canEdit=(role:string)=>["owner","admin","manager"].includes(role);
 
-export default function CustomersDashboard({supabase,workspaceId,userId,role}:Props){
- const [customers,setCustomers]=useState<Client[]>([]);
+export default function CustomersDashboard({supabase,workspaceId,userId,role,customers:externalCustomers,onCustomersChange}:Props){
+ const [customers,setCustomers]=useState<Client[]>(externalCustomers||[]);
  const [selectedId,setSelectedId]=useState("");
  const [interactions,setInteractions]=useState<Interaction[]>([]);
  const [followUps,setFollowUps]=useState<(Interaction & {customer_name:string})[]>([]);
@@ -25,6 +25,7 @@ export default function CustomersDashboard({supabase,workspaceId,userId,role}:Pr
  const [showInteraction,setShowInteraction]=useState(false);
  const [name,setName]=useState(""); const [email,setEmail]=useState(""); const [phone,setPhone]=useState(""); const [company,setCompany]=useState(""); const [notes,setNotes]=useState(""); const [status,setStatus]=useState("active");
  const [kind,setKind]=useState("call"); const [subject,setSubject]=useState(""); const [detail,setDetail]=useState(""); const [followUp,setFollowUp]=useState(""); const [busy,setBusy]=useState(false);
+ const [completingIds,setCompletingIds]=useState<string[]>([]);
  const selected=customers.find(c=>c.id===selectedId)||null;
  const load=useCallback(async()=>{
   if(!supabase||!workspaceId){setLoading(false);return;}
@@ -34,15 +35,16 @@ export default function CustomersDashboard({supabase,workspaceId,userId,role}:Pr
   const rows=(data||[]) as Client[];setCustomers(rows);setSelectedId(current=>rows.some(c=>c.id===current)?current:rows[0]?.id||"");setLoading(false);
  },[supabase,workspaceId]);
  useEffect(()=>{void load();},[load]);
+ useEffect(()=>{if(!externalCustomers)return;setCustomers(externalCustomers);setSelectedId(current=>externalCustomers.some(customer=>customer.id===current)?current:externalCustomers[0]?.id||"");},[externalCustomers]);
  useEffect(()=>{
   let live=true;
   async function loadFollowUps(){
    if(!supabase||!workspaceId){setFollowUps([]);return;}
-   const {data,error:followError}=await supabase.from("customer_interactions").select("id,customer_id,interaction_type,subject,notes,follow_up_at,follow_up_completed_at,created_by,created_at").eq("workspace_id",workspaceId).not("follow_up_at","is",null).is("follow_up_completed_at",null).order("follow_up_at",{ascending:true}).limit(100);
+   const {data,error:followError}=await supabase.from("customer_interactions").select("id,customer_id,interaction_type,subject,notes,follow_up_at,follow_up_completed_at,created_by,created_at,customer:customers(name)").eq("workspace_id",workspaceId).not("follow_up_at","is",null).is("follow_up_completed_at",null).order("follow_up_at",{ascending:true}).limit(100);
    if(!live)return;
    if(followError){setError(followError.message);return;}
-   const rows=(data||[]) as Interaction[];
-   setFollowUps(rows.map(item=>({...item,customer_name:customers.find(customer=>customer.id===item.customer_id)?.name||"Customer"})));
+   const rows=(data||[]) as (Interaction & {customer:{name:string}|null})[];
+   setFollowUps(rows.map(item=>({...item,customer_name:item.customer?.name||customers.find(customer=>customer.id===item.customer_id)?.name||"Customer"})));
   }
   void loadFollowUps();return()=>{live=false;};
  },[supabase,workspaceId,customers]);
@@ -57,11 +59,18 @@ export default function CustomersDashboard({supabase,workspaceId,userId,role}:Pr
   void loadInteractions();return()=>{live=false;};
  },[supabase,workspaceId,selectedId]);
  const filtered=useMemo(()=>customers.filter(c=>(c.name+" "+(c.company||"")+" "+(c.email||"")).toLowerCase().includes(search.toLowerCase())),[customers,search]);
+ async function openFollowUpCustomer(item:Interaction & {customer_name:string}){
+  setSelectedId(item.customer_id);
+  if(customers.some(customer=>customer.id===item.customer_id)||!supabase)return;
+  const {data,error:customerError}=await supabase.from("customers").select("id,name,email,phone,company,notes,status,created_at").eq("id",item.customer_id).eq("workspace_id",workspaceId).maybeSingle();
+  if(customerError){setError(customerError.message);return;}
+  if(data){const row=data as Client;setCustomers(current=>[row,...current]);onCustomersChange?.([row,...customers]);}
+ }
  function editProfile(c:Client){setSelectedId(c.id);setName(c.name);setEmail(c.email||"");setPhone(c.phone||"");setCompany(c.company||"");setNotes(c.notes||"");setStatus(c.status||"active");setShowProfile(true);}
  async function saveProfile(e:FormEvent){
   e.preventDefault();if(!supabase||!selected)return;setBusy(true);setError("");setNotice("");
   const {error:saveError}=await supabase.from("customers").update({name:name.trim(),email:email.trim()||null,phone:phone.trim()||null,company:company.trim()||null,notes:notes.trim()||null,status}).eq("id",selected.id).eq("workspace_id",workspaceId);
-  if(saveError)setError(saveError.message);else{setCustomers(rows=>rows.map(c=>c.id===selected.id?{...c,name:name.trim(),email:email.trim()||null,phone:phone.trim()||null,company:company.trim()||null,notes:notes.trim()||null,status}:c));setNotice("Customer profile updated.");setShowProfile(false);}
+  if(saveError)setError(saveError.message);else{const updated=customers.map(c=>c.id===selected.id?{...c,name:name.trim(),email:email.trim()||null,phone:phone.trim()||null,company:company.trim()||null,notes:notes.trim()||null,status}:c);setCustomers(updated);onCustomersChange?.(updated);setNotice("Customer profile updated.");setShowProfile(false);}
   setBusy(false);
  }
  async function saveInteraction(e:FormEvent){
@@ -76,12 +85,12 @@ export default function CustomersDashboard({supabase,workspaceId,userId,role}:Pr
   {notice&&<div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">{notice}</div>}
   <section className="subtle-card p-4">
    <div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="text-sm font-bold">Follow-up tracker</h2><p className="mt-1 text-[10px] text-[#929c95]">Upcoming and overdue customer follow-ups</p></div><span className="rounded-full bg-[#eaf2ec] px-2.5 py-1 text-[10px] font-semibold text-[#16865b]">{followUps.filter(item=>new Date(item.follow_up_at||"")>=new Date()).length} upcoming</span></div>
-   {followUps.length?<div className="grid gap-2 md:grid-cols-2">{followUps.map(item=>{const overdue=!!item.follow_up_at&&new Date(item.follow_up_at)<new Date();return <div key={item.id} className="flex min-w-0 items-start gap-3 rounded-lg border border-[#edf0ee] p-3 text-left hover:bg-[#fafbfa]"><button type="button" onClick={()=>setSelectedId(item.customer_id)} className="flex min-w-0 flex-1 items-start gap-3 text-left"><CalendarClock size={15} className={overdue?"mt-0.5 text-amber-600":"mt-0.5 text-[#16865b]"}/><span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[#34433a]">{item.subject}</span><span className="mt-1 block truncate text-[10px] text-[#929c95]">{item.customer_name} · {item.follow_up_at?dateLabel(item.follow_up_at):""}</span></span><span className={"shrink-0 rounded-full px-2 py-1 text-[9px] "+(overdue?"bg-amber-50 text-amber-700":"bg-[#eef5ef] text-[#16865b]")}>{overdue?"Overdue":"Upcoming"}</span></button>{item.created_by===userId&&<button type="button" onClick={async()=>{if(!supabase)return;const {error:completeError}=await supabase.from("customer_interactions").update({follow_up_completed_at:new Date().toISOString()}).eq("id",item.id).eq("workspace_id",workspaceId);if(completeError)setError(completeError.message);else setFollowUps(rows=>rows.filter(row=>row.id!==item.id));}} className="shrink-0 rounded-md border border-[#dcebe0] px-2 py-1 text-[9px] font-semibold text-[#16865b]">Done</button>}</div>})}</div>:<div className="rounded-lg bg-[#fafbfa] px-4 py-5 text-center text-xs text-[#929c95]">No customer follow-ups scheduled.</div>}
+   {followUps.length?<div className="grid gap-2 md:grid-cols-2">{followUps.map(item=>{const overdue=!!item.follow_up_at&&new Date(item.follow_up_at)<new Date();return <div key={item.id} className="flex min-w-0 items-start gap-3 rounded-lg border border-[#edf0ee] p-3 text-left hover:bg-[#fafbfa]"><button type="button" onClick={()=>void openFollowUpCustomer(item)} className="flex min-w-0 flex-1 items-start gap-3 text-left"><CalendarClock size={15} className={overdue?"mt-0.5 text-amber-600":"mt-0.5 text-[#16865b]"}/><span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[#34433a]">{item.subject}</span><span className="mt-1 block truncate text-[10px] text-[#929c95]">{item.customer_name} · {item.follow_up_at?dateLabel(item.follow_up_at):""}</span></span><span className={"shrink-0 rounded-full px-2 py-1 text-[9px] "+(overdue?"bg-amber-50 text-amber-700":"bg-[#eef5ef] text-[#16865b]")}>{overdue?"Overdue":"Upcoming"}</span></button>{item.created_by===userId&&<button type="button" disabled={completingIds.includes(item.id)} onClick={async()=>{if(!supabase||completingIds.includes(item.id))return;setCompletingIds(ids=>[...ids,item.id]);setError("");const {error:completeError}=await supabase.from("customer_interactions").update({follow_up_completed_at:new Date().toISOString()}).eq("id",item.id).eq("workspace_id",workspaceId).is("follow_up_completed_at",null);if(completeError)setError("Could not complete follow-up: "+completeError.message);else setFollowUps(rows=>rows.filter(row=>row.id!==item.id));setCompletingIds(ids=>ids.filter(id=>id!==item.id));}} className="shrink-0 rounded-md border border-[#dcebe0] px-2 py-1 text-[9px] font-semibold text-[#16865b] disabled:cursor-not-allowed disabled:opacity-50">{completingIds.includes(item.id)?"Saving…":"Done"}</button>}</div>})}</div>:<div className="rounded-lg bg-[#fafbfa] px-4 py-5 text-center text-xs text-[#929c95]">No customer follow-ups scheduled.</div>}
   </section>
   <div className="grid gap-4 lg:grid-cols-[minmax(240px,.8fr)_minmax(0,1.5fr)]">
    <section className="subtle-card overflow-hidden">
     <div className="border-b border-[#edf0ee] p-4"><div className="text-sm font-bold">Customer directory</div><div className="relative mt-3"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#929c95]"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customers..." className="field !pl-9"/></div></div>
-    {loading?<div className="p-8 text-center text-xs text-[#929c95]">Loading customers…</div>:filtered.length?filtered.map(c=><button key={c.id} onClick={()=>setSelectedId(c.id)} className={"flex w-full items-center gap-3 border-b border-[#f0f3f1] p-4 text-left last:border-0 "+(selectedId===c.id?"bg-[#f3f8f4]":"hover:bg-[#fafbfa]")}><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#eaf2ec] text-[#16865b]"><UserRound size={16}/></span><span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[#34433a]">{c.name}</span><span className="mt-1 block truncate text-[10px] text-[#929c95]">{c.company||c.email||"Customer"}</span></span><span className="rounded-full bg-[#f0f3f1] px-2 py-1 text-[9px] capitalize text-[#68756d]">{c.status||"active"}</span></button>):<div className="p-8 text-center text-xs text-[#929c95]">No customers match this search.</div>}
+    {loading?<div className="p-8 text-center text-xs text-[#929c95]">Loading customers…</div>:filtered.length?filtered.map(c=><button key={c.id} onClick={()=>setSelectedId(c.id)} className={"flex w-full items-center gap-3 border-b border-[#f0f3f1] p-4 text-left last:border-0 "+(selectedId===c.id?"bg-[#f3f8f4]":"hover:bg-[#fafbfa]")}><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#eaf2ec] text-[#16865b]"><UserRound size={16}/></span><span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[#34433a]">{c.name}</span><span className="mt-1 block truncate text-[10px] text-[#929c95]">{c.company||c.email||"Customer"}</span></span><span className="rounded-full bg-[#f0f3f1] px-2 py-1 text-[9px] capitalize text-[#68756d]">{c.status||"active"}</span></button>):<div className="p-8 text-center text-xs text-[#929c95]">{customers.length===0?"No customers yet. Add your first customer to start building your CRM.":"No customers match this search. Try another name, company or email."}</div>}
    </section>
    <section className="subtle-card min-h-[380px]">
     {selected?<><div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#edf0ee] p-5"><div className="flex min-w-0 items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#eaf2ec] text-[#16865b]"><UserRound size={20}/></span><div className="min-w-0"><h2 className="truncate text-base font-bold text-[#34433a]">{selected.name}</h2><p className="mt-1 text-xs text-[#929c95]">{selected.company||"No company added"}</p></div></div>{canEdit(role)&&<button onClick={()=>editProfile(selected)} className="action-button">Edit profile</button>}</div>
