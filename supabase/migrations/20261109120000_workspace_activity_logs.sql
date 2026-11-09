@@ -52,7 +52,7 @@ begin
     if cardinality(v_changed) = 0 then return new; end if;
   end if;
   v_workspace_id := nullif(row_data ->> 'workspace_id','')::uuid;
-  if v_workspace_id is null then return coalesce(new, old); end if;
+  if v_workspace_id is null then if tg_op = 'DELETE' then return old; else return new; end if; end if;
   v_entity_id := nullif(row_data ->> 'id','')::uuid;
   v_actor_id := auth.uid();
   if v_actor_id is null then v_actor_id := nullif(row_data ->> 'created_by','')::uuid; end if;
@@ -62,7 +62,7 @@ begin
     case when v_entity_type = 'workspace_members' then 'Team member' else 'Record' end);
   insert into public.activity_logs(workspace_id,actor_id,action,entity_type,entity_id,entity_label,changed_fields)
   values(v_workspace_id,v_actor_id,v_action,v_entity_type,v_entity_id,left(v_label,180),v_changed);
-  return coalesce(new, old);
+  if tg_op = 'DELETE' then return old; else return new; end if;
 end;
 $$;
 revoke all on function private.capture_workspace_activity() from public, anon, authenticated;
