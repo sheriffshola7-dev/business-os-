@@ -131,6 +131,7 @@ export type Database = {
           created_by: string
           currency: string
           id: string
+          image_path: string | null
           name: string
           quantity: number
           reorder_level: number
@@ -144,6 +145,7 @@ export type Database = {
           created_by: string
           currency?: string
           id?: string
+          image_path?: string | null
           name: string
           quantity?: number
           reorder_level?: number
@@ -157,6 +159,7 @@ export type Database = {
           created_by?: string
           currency?: string
           id?: string
+          image_path?: string | null
           name?: string
           quantity?: number
           reorder_level?: number
