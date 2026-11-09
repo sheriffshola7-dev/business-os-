@@ -67,7 +67,7 @@ export type Database = {
       customer_interactions: {
         Row: { id: string; workspace_id: string; customer_id: string; interaction_type: string; subject: string; notes: string | null; follow_up_at: string | null; follow_up_completed_at: string | null; created_by: string; created_at: string }
         Insert: { id?: string; workspace_id: string; customer_id: string; interaction_type: string; subject: string; notes?: string | null; follow_up_at?: string | null; follow_up_completed_at?: string | null; created_by: string; created_at?: string }
-        Update: { id?: string; workspace_id?: string; customer_id?: string; interaction_type?: string; subject?: string; notes?: string | null; follow_up_at?: string | null; created_by?: string; created_at?: string }
+        Update: { id?: string; workspace_id?: string; customer_id?: string; interaction_type?: string; subject?: string; notes?: string | null; follow_up_at?: string | null; follow_up_completed_at?: string | null; created_by?: string; created_at?: string }
         Relationships: [
           { foreignKeyName: "customer_interactions_customer_id_fkey"; columns: ["customer_id"]; isOneToOne: false; referencedRelation: "customers"; referencedColumns: ["id"] },
           { foreignKeyName: "customer_interactions_workspace_id_fkey"; columns: ["workspace_id"]; isOneToOne: false; referencedRelation: "workspaces"; referencedColumns: ["id"] }
