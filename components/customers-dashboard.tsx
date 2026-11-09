@@ -16,6 +16,7 @@ export default function CustomersDashboard({supabase,workspaceId,userId,role}:Pr
  const [customers,setCustomers]=useState<Client[]>([]);
  const [selectedId,setSelectedId]=useState("");
  const [interactions,setInteractions]=useState<Interaction[]>([]);
+ const [followUps,setFollowUps]=useState<(Interaction & {customer_name:string})[]>([]);
  const [search,setSearch]=useState("");
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
@@ -33,6 +34,18 @@ export default function CustomersDashboard({supabase,workspaceId,userId,role}:Pr
   const rows=(data||[]) as Client[];setCustomers(rows);setSelectedId(current=>rows.some(c=>c.id===current)?current:rows[0]?.id||"");setLoading(false);
  },[supabase,workspaceId]);
  useEffect(()=>{void load();},[load]);
+ useEffect(()=>{
+  let live=true;
+  async function loadFollowUps(){
+   if(!supabase||!workspaceId){setFollowUps([]);return;}
+   const {data,error:followError}=await supabase.from("customer_interactions").select("id,customer_id,interaction_type,subject,notes,follow_up_at,created_at").eq("workspace_id",workspaceId).not("follow_up_at","is",null).order("follow_up_at",{ascending:true}).limit(100);
+   if(!live)return;
+   if(followError){setError(followError.message);return;}
+   const rows=(data||[]) as Interaction[];
+   setFollowUps(rows.map(item=>({...item,customer_name:customers.find(customer=>customer.id===item.customer_id)?.name||"Customer"})));
+  }
+  void loadFollowUps();return()=>{live=false;};
+ },[supabase,workspaceId,customers]);
  useEffect(()=>{
   let live=true;
   async function loadInteractions(){
@@ -61,6 +74,10 @@ export default function CustomersDashboard({supabase,workspaceId,userId,role}:Pr
  return <div className="space-y-4">
   {error&&<div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</div>}
   {notice&&<div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">{notice}</div>}
+  <section className="subtle-card p-4">
+   <div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="text-sm font-bold">Follow-up tracker</h2><p className="mt-1 text-[10px] text-[#929c95]">Upcoming and overdue customer follow-ups</p></div><span className="rounded-full bg-[#eaf2ec] px-2.5 py-1 text-[10px] font-semibold text-[#16865b]">{followUps.filter(item=>new Date(item.follow_up_at||"")>=new Date()).length} upcoming</span></div>
+   {followUps.length?<div className="grid gap-2 md:grid-cols-2">{followUps.map(item=>{const overdue=!!item.follow_up_at&&new Date(item.follow_up_at)<new Date();return <button key={item.id} onClick={()=>setSelectedId(item.customer_id)} className="flex min-w-0 items-start gap-3 rounded-lg border border-[#edf0ee] p-3 text-left hover:bg-[#fafbfa]"><CalendarClock size={15} className={overdue?"mt-0.5 text-amber-600":"mt-0.5 text-[#16865b]"}/><span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[#34433a]">{item.subject}</span><span className="mt-1 block truncate text-[10px] text-[#929c95]">{item.customer_name} · {item.follow_up_at?dateLabel(item.follow_up_at):""}</span></span><span className={"shrink-0 rounded-full px-2 py-1 text-[9px] "+(overdue?"bg-amber-50 text-amber-700":"bg-[#eef5ef] text-[#16865b]")}>{overdue?"Overdue":"Upcoming"}</span></button>})}</div>:<div className="rounded-lg bg-[#fafbfa] px-4 py-5 text-center text-xs text-[#929c95]">No customer follow-ups scheduled.</div>}
+  </section>
   <div className="grid gap-4 lg:grid-cols-[minmax(240px,.8fr)_minmax(0,1.5fr)]">
    <section className="subtle-card overflow-hidden">
     <div className="border-b border-[#edf0ee] p-4"><div className="text-sm font-bold">Customer directory</div><div className="relative mt-3"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#929c95]"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customers..." className="field !pl-9"/></div></div>
