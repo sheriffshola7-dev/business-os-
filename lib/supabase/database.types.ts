@@ -14,6 +14,14 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: { id: string; workspace_id: string; actor_id: string | null; action: string; entity_type: string; entity_id: string | null; entity_label: string; changed_fields: string[]; created_at: string }
+        Insert: { id?: string; workspace_id: string; actor_id?: string | null; action: string; entity_type: string; entity_id?: string | null; entity_label?: string; changed_fields?: string[]; created_at?: string }
+        Update: { id?: string; workspace_id?: string; actor_id?: string | null; action?: string; entity_type?: string; entity_id?: string | null; entity_label?: string; changed_fields?: string[]; created_at?: string }
+        Relationships: [
+          { foreignKeyName: "activity_logs_workspace_id_fkey"; columns: ["workspace_id"]; isOneToOne: false; referencedRelation: "workspaces"; referencedColumns: ["id"] }
+        ]
+      }
       customers: {
         Row: {
           company: string | null
@@ -24,6 +32,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          status: string
           updated_at: string
           workspace_id: string
         }
@@ -36,6 +45,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          status?: string
           updated_at?: string
           workspace_id: string
         }
@@ -48,6 +58,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          status?: string
           updated_at?: string
           workspace_id?: string
         }
@@ -59,6 +70,15 @@ export type Database = {
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      customer_interactions: {
+        Row: { id: string; workspace_id: string; customer_id: string; interaction_type: string; subject: string; notes: string | null; follow_up_at: string | null; follow_up_completed_at: string | null; created_by: string; created_at: string }
+        Insert: { id?: string; workspace_id: string; customer_id: string; interaction_type: string; subject: string; notes?: string | null; follow_up_at?: string | null; follow_up_completed_at?: string | null; created_by: string; created_at?: string }
+        Update: { id?: string; workspace_id?: string; customer_id?: string; interaction_type?: string; subject?: string; notes?: string | null; follow_up_at?: string | null; follow_up_completed_at?: string | null; created_by?: string; created_at?: string }
+        Relationships: [
+          { foreignKeyName: "customer_interactions_customer_id_fkey"; columns: ["customer_id"]; isOneToOne: false; referencedRelation: "customers"; referencedColumns: ["id"] },
+          { foreignKeyName: "customer_interactions_workspace_id_fkey"; columns: ["workspace_id"]; isOneToOne: false; referencedRelation: "workspaces"; referencedColumns: ["id"] }
         ]
       }
       expenses: {
@@ -109,7 +129,9 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          currency: string
           id: string
+          image_path: string | null
           name: string
           quantity: number
           reorder_level: number
@@ -121,7 +143,9 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          currency?: string
           id?: string
+          image_path?: string | null
           name: string
           quantity?: number
           reorder_level?: number
@@ -133,7 +157,9 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          currency?: string
           id?: string
+          image_path?: string | null
           name?: string
           quantity?: number
           reorder_level?: number
@@ -206,6 +232,196 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_notifications: {
+        Row: {
+          created_at: string
+          dedupe_key: string
+          dismissed_at: string | null
+          id: string
+          is_active: boolean
+          message: string
+          read_at: string | null
+          severity: string
+          source_id: string
+          source_type: string
+          title: string
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          dedupe_key: string
+          dismissed_at?: string | null
+          id?: string
+          is_active?: boolean
+          message: string
+          read_at?: string | null
+          severity?: string
+          source_id: string
+          source_type: string
+          title: string
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          read_at?: string | null
+          dismissed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_notifications_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount_paid: number
+          created_at: string
+          created_by: string
+          currency: string
+          customer_id: string | null
+          due_date: string | null
+          id: string
+          invoice_number: string
+          issue_date: string
+          notes: string | null
+          status: string
+          subtotal: number
+          tax_amount: number
+          tax_rate: number
+          total_amount: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          amount_paid?: number
+          created_at?: string
+          created_by: string
+          currency?: string
+          customer_id?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          issue_date?: string
+          notes?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tax_rate?: number
+          total_amount?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          currency?: string
+          customer_id?: string | null
+          due_date?: string | null
+          invoice_number?: string
+          issue_date?: string
+          notes?: string | null
+          status?: string
+          tax_rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          line_total: number
+          quantity: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          quantity: number
+          unit_price: number
+        }
+        Update: {
+          description?: string
+          quantity?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          currency: string
+          id: string
+          invoice_id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string | null
+          reference: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          currency: string
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          reference?: string | null
+        }
+        Update: {
+          amount?: number
+          currency?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          reference?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -324,6 +540,50 @@ export type Database = {
           },
         ]
       }
+      workspace_invitations: {
+        Row: {
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          role: string
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          role: string
+          status?: string
+          workspace_id: string
+        }
+        Update: {
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          role?: string
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_invitations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_members: {
         Row: {
           created_at: string
@@ -358,22 +618,28 @@ export type Database = {
       }
       workspaces: {
         Row: {
+          country_code: string | null
           created_at: string
           created_by: string
+          currency: string
           id: string
           name: string
           updated_at: string
         }
         Insert: {
+          country_code?: string | null
           created_at?: string
           created_by: string
+          currency?: string
           id?: string
           name: string
           updated_at?: string
         }
         Update: {
+          country_code?: string | null
           created_at?: string
           created_by?: string
+          currency?: string
           id?: string
           name?: string
           updated_at?: string
@@ -391,6 +657,14 @@ export type Database = {
           p_note?: string
           p_quantity_change: number
         }
+        Returns: undefined
+      }
+      change_workspace_member_role: {
+        Args: { p_membership_id: string; p_new_role: string }
+        Returns: undefined
+      }
+      remove_workspace_member: {
+        Args: { p_membership_id: string }
         Returns: undefined
       }
     }

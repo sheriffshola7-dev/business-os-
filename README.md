@@ -8,7 +8,7 @@ A clean, responsive workspace for managing business operations.
 - Next.js App Router, React and TypeScript
 - Tailwind CSS 4 and Lucide icons
 - Supabase Auth and PostgreSQL with Row Level Security
-- Vercel-ready
+- Netlify deployment
 
 ## Local setup
 1. Install dependencies with `npm install`.
@@ -25,7 +25,10 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 Use only the publishable key in browser-exposed variables. Never put a Supabase secret or service-role key in a `NEXT_PUBLIC_*` variable.
 
 ## Database
-The initial schema includes workspaces, workspace members, tasks, customers, expenses, sales and inventory items. Row Level Security is enabled on every table. New users receive a private workspace after their first successful sign-in.
+The application uses workspace-scoped Supabase records with Row Level Security. Workspace membership and role policies isolate business data between workspaces.
 
-## Current status
-Email signup/sign-in and the database foundation are connected in the codebase. The dashboard still contains clearly labelled preview/sample content; the next implementation step is wiring dashboard modules to live workspace records.
+## Current implementation
+The feature branch includes workspace management, tasks and projects, customers and CRM follow-ups, sales, expenses, inventory, invoices and payment tracking, reports, notifications, global search, activity logs, settings, and a searchable Help Centre.
+
+## Preview and release status
+This branch is intended for a Netlify Deploy Preview. Frontend build and browser verification are still pending. Do not merge this branch or publish it to production until the preview has been reviewed and tested.
