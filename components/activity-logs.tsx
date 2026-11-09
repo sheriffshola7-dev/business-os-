@@ -28,6 +28,7 @@ const entityNames: Record<string, string> = {
   inventory_items: "Inventory item",
   invoices: "Invoice",
   workspace_members: "Team member",
+  workspace_invitations: "Team invitation",
 };
 
 const actionStyles: Record<ActivityRow["action"], string> = {
